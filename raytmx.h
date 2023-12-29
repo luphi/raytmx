@@ -58,26 +58,6 @@
     extern "C" {
 #endif /* __cpluspus */
 
-/* LUKE TODO
- * commenting/documenting
- * Linux build and test
- * readme
- */
-
-/* LUKE LIMITATIONS
- * text drawing is limited to raylib's default font although the desired font is available as a string
- * text drawing does not support bold, italics, underline, or strikeout styling
- * concave polygon obects may not be drawn correctly due to drawing with fan triangulation from the centroid
- * nested <properties> are not supported; they are merged into a single list of properties
- * wangsets are not implemented
- * tile object alignment (i.e. placement of tiles when used as <object>s) is not implemented
- * image transparency colors are parsed but their use is not implemented
- * repetition of image layers is not implemented
- * no tile data compression methods are implemented
- * object rotations are not implemented
- * infinite maps are not supported and are treated as fixed-size
- */
-
 /***************/
 /* Definitions */
 
