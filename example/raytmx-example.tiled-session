@@ -1,0 +1,63 @@
+{
+    "activeFile": "",
+    "expandedProjectPaths": [
+    ],
+    "file.lastUsedOpenFilter": "All Files (*)",
+    "fileStates": {
+        "raytmx-example.tmx": {
+            "expandedGroupLayers": [
+                3,
+                5,
+                4
+            ],
+            "expandedObjectLayers": [
+                16
+            ],
+            "scale": 2.0324519230769234,
+            "selectedLayer": 16,
+            "viewCenter": {
+                "x": 288.0756948551153,
+                "y": 416.49201655824953
+            }
+        },
+        "raytmx-example.tmx#fade": {
+            "scaleInDock": 1
+        },
+        "raytmx-example.tmx#grass": {
+            "scaleInDock": 4
+        },
+        "raytmx-example.tmx#ruins": {
+            "scaleInDock": 4
+        },
+        "tests/desert.tmx": {
+            "scale": 1.1296093749999998,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 640.4868939760704,
+                "y": 640.4868939760704
+            }
+        },
+        "tests/desert.tmx#Desert": {
+            "scaleInDock": 1
+        },
+        "tests/text.tmx": {
+            "expandedObjectLayers": [
+                3,
+                2,
+                4
+            ],
+            "scale": 1.8826822916666666,
+            "selectedLayer": 2,
+            "viewCenter": {
+                "x": 384.29213638564215,
+                "y": 384.29213638564215
+            }
+        }
+    },
+    "openFiles": [
+    ],
+    "project": "raytmx-example.tiled-project",
+    "recentFiles": [
+    ],
+    "resizeMap.removeObjects": false
+}

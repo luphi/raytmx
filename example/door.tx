@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template>
+ <object width="16" height="16">
+  <properties>
+   <property name="direction" value="north"/>
+   <property name="map" value="raytmx-example"/>
+   <property name="name" value="spawn"/>
+   <property name="to" value="garden upper"/>
+  </properties>
+ </object>
+</template>

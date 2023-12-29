@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.10.1" orientation="orthogonal" renderorder="right-down" width="48" height="48" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="22">
+ <objectgroup color="#ffffff" id="4" name="Background">
+  <object id="18" x="0" y="0" width="768" height="768"/>
+ </objectgroup>
+ <objectgroup color="#ffaa00" id="3" name="Bounds">
+  <object id="8" x="464" y="608" width="224" height="144"/>
+  <object id="9" x="16" y="336" width="176" height="80"/>
+  <object id="10" x="192" y="192" width="160" height="352"/>
+  <object id="11" x="416" y="336" width="128" height="80"/>
+  <object id="12" x="80" y="96" width="80" height="112"/>
+  <object id="15" x="624" y="48" width="64" height="48"/>
+  <object id="16" x="128" y="592" width="112" height="96"/>
+  <object id="20" x="480" y="176" width="144" height="64"/>
+ </objectgroup>
+ <objectgroup id="2" name="Text">
+  <object id="1" x="80" y="96" width="80" height="112">
+   <text fontfamily="Segoe UI" pixelsize="20" wrap="1">Single word wrap</text>
+  </object>
+  <object id="2" x="192" y="192" width="160" height="352">
+   <text fontfamily="Segoe UI" pixelsize="20" wrap="1" halign="center" valign="center">Single line</text>
+  </object>
+  <object id="3" x="416" y="336" width="128" height="80">
+   <text fontfamily="Segoe UI" pixelsize="24" wrap="1">Line one Line two</text>
+  </object>
+  <object id="4" x="128" y="592" width="112" height="96">
+   <text wrap="1">Thiswordistoolongtodisplay but here are some spaces</text>
+  </object>
+  <object id="5" x="464" y="608" width="224" height="144">
+   <text fontfamily="Segoe UI" pixelsize="32" wrap="1" halign="right" valign="bottom">Singleword</text>
+  </object>
+  <object id="6" x="624" y="48" width="64" height="48">
+   <text wrap="1">This is a Y bounds test, this text should be dropped</text>
+  </object>
+  <object id="7" x="16" y="336" width="176" height="80">
+   <text fontfamily="Segoe UI" pixelsize="24" wrap="1" halign="center">Extra          spaces</text>
+  </object>
+  <object id="19" x="480" y="176" width="144" height="32">
+   <text wrap="1" halign="justify" valign="center">H justified test</text>
+  </object>
+  <object id="21" x="480" y="208" width="144" height="17.875">
+   <text wrap="1" halign="justify">JUSTIFIED</text>
+  </object>
+ </objectgroup>
+</map>
