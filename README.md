@@ -10,6 +10,7 @@ Header-only raylib library for loading and drawing Tiled's TMX tilemap documents
 - Portable C99, tested with GCC (Windows and Linux) and MSVC
 - Supports external tilesets and object templates
 - Supports animations
+- Supports ZLIB and GZIP compression for tile layer data
 - Supports parallaxed scrolling of layers when a Camera2D is used
 - Supports unencoded tile layer data and Base64- and CSV-encoded data
 - Supports tile flipping flags and applies correct transforms
@@ -21,7 +22,7 @@ Header-only raylib library for loading and drawing Tiled's TMX tilemap documents
 
 - Only the orthogonal orientation is supported; isometric, staggered, and hexagonal are not
 - JSON, which can optionally be used by Tiled, is not currently implemented
-- No tile data (de)compression methods are currently implemented
+- ZStandard-compressed layer data decompression is not implemented
 - Wangsets are not implemented
 - Infinite maps are not supported and are treated as fixed-size
 - Object rotations are parsed but currently ignored when drawing

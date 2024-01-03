@@ -2012,32 +2012,61 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                             iterator += 1; /* Point to the next unsigned, 32-bit integer in the decoded data */
                         }
                     } else { /* If the Base-64encoded data is also compressed */
-                        /* TODO: Uncomment if or when raylib's DecompressData() is found to work. At the moment, it */
-                        /* calculates the length of the decompressed data as zero and fails. This is true for "gzip" */
-                        /* and "zlib" layers. */
-                        // if (strcmp(raytmxState->tileLayer->compression, "gzip") == 0 ||
-                                // strcmp(raytmxState->tileLayer->compression, "zlib") == 0) {
-                            // /* "zlib" and "gzip" both use the DEFLATE algorithm and raylib provides a decompression */
-                            // /* function, when built with SUPPORT_COMPRESSION_API (default), so both are supported */
-                            // int decompressedLength;
-                            // unsigned char* decompressed = DecompressData(decoded, decodedLength, &decompressedLength);
-                            // if (decompressed != NULL && decompressedLength > 0) {
-                                // uint32_t* iterator = (uint32_t*)decompressed;
-                                // for (int i = 0; i < decompressedLength / 4; i++) {
-                                    // AddTileLayerTile(raytmxState, *iterator);
-                                    // iterator += 1; /* Point to the next unsigned integer in the decompressed data */
-                                // }
-                                // MemFree(decompressed); /* Free the memory allocated by DecompressData() */
-                            // } else { /* raylib wasn't built with compression or allocation failed */
-                                // TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" compressed with \"%s\" cannot be parsed "
-                                    // "because DEFLATE decompression failed - either raylib was not built with "
-                                    // "SUPPORT_COMPRESSION_API or memory allocation failed", raytmxState->layer->name,
-                                    // raytmxState->tileLayer->compression);
-                            // }
-                        // } else {
+                        if (strcmp(raytmxState->tileLayer->compression, "gzip") == 0 ||
+                                strcmp(raytmxState->tileLayer->compression, "zlib") == 0) {
+                            unsigned char* postHeaderDecoded = NULL;
+                            if (strcmp(raytmxState->tileLayer->compression, "gzip") == 0) {
+                                /* The first two bytes of a GZIP header are expected to be a magic number, 0x1F8B, */
+                                /* identifying the format and the third is expected to indicate the compression */
+                                /* method where 0x08 is DEFLATE. */
+                                /* If these values are found, decompression can continue */
+                                if (decoded[0] == 0x1F && decoded[1] == 0x8B && decoded[2] == 0x08) {
+                                    /* Skip past the GZIP header. The header is typically ten bytes. The bytes not */
+                                    /* checked are unimportant things like a timestamp and OS ID. Additional optional */
+                                    /* headers are possible but not used by Tiled so they are assumed to be missing. */
+                                    postHeaderDecoded = decoded + 10;
+                                } else { /* If the GZIP header doesn't match a decompressable one */
+                                    TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" uses GZIP compression but the stream's "
+                                        "header doesn't indicate DEFLATE compression", raytmxState->layer->name);
+                                }
+                            } else /* if (strcmp(raytmxState->tileLayer->compression, "zlib") == 0) */ {
+                                /* The first byte of a ZLIB header is expected to be 0x78 where the 8 indicates the */
+                                /* DEFLATE compression method and the 7 is "compression info" that indicates a 32K */
+                                /* LZ77 window size and, in practice, cannot be anything else. */
+                                /* If these values are found, decompression can continue */
+                                if (decoded[0] == 0x78) {
+                                    /* Skip past the ZLIB header. The header is two bytes. */
+                                    postHeaderDecoded = decoded + 2;
+                                } else { /* If the ZLIB header doesn't match a decompressable one */
+                                    TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" uses ZLIB compression but the stream's "
+                                        "header doesn't indicate DEFLATE compression", raytmxState->layer->name);
+                                }
+                            }
+
+                            if (postHeaderDecoded != NULL) {
+                                /* "zlib" and "gzip" both use the DEFLATE algorithm and raylib provides a */
+                                /* decompression function when it's built with SUPPORT_COMPRESSION_API (default) */
+                                int decompressedLength;
+                                unsigned char* decompressed = DecompressData(postHeaderDecoded, decodedLength,
+                                    &decompressedLength);
+                                if (decompressed != NULL && decompressedLength > 0) {
+                                    uint32_t* iterator = (uint32_t*)decompressed;
+                                    for (int i = 0; i < decompressedLength / 4; i++) {
+                                        AddTileLayerTile(raytmxState, *iterator);
+                                        iterator += 1; /* Point to the next unsigned integer in the decompressed data */
+                                    }
+                                    MemFree(decompressed); /* Free the memory allocated by DecompressData() */
+                                } else { /* raylib wasn't built with compression or allocation failed */
+                                    TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" compressed with \"%s\" cannot be parsed "
+                                        "because DEFLATE decompression failed - either raylib was not built with "
+                                        "SUPPORT_COMPRESSION_API or memory allocation failed", raytmxState->layer->name,
+                                        raytmxState->tileLayer->compression);
+                                }
+                            }
+                        } else {
                             TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" cannot be parsed because the compression method "
                                 "\"%s\" is unsupported", raytmxState->layer->name, raytmxState->tileLayer->compression);
-                        // }
+                        }
                     }
                     MemFree(decoded); /* Free the memory allocated by DecodeDataBase64() */
                 } else {
