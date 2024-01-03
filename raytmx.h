@@ -700,7 +700,6 @@ void* MemAllocZero(unsigned int size);
 char* JoinPath(const char* prefix, const char* suffix);
 void StringCopyN(char* destination, const char* source, size_t number);
 void StringConcatenate(char* destination, const char* source);
-unsigned char* DecodeBase64(const char* encoded, size_t encodedLength, size_t* decodedLength);
 
 /**********************************************************************************************************************/
 /* Public implementation.                                                                                             */
@@ -2001,29 +2000,46 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     encodedEnd--;
 
                 /* With the string of encoded Base64 data trimmed, decode it */
-                size_t decodedLength;
-                unsigned char* decoded = DecodeBase64(encodedStart, encodedEnd - encodedStart + 1, &decodedLength);
+                int decodedLength;
+                unsigned char* decoded = DecodeDataBase64((const unsigned char*)encodedStart, &decodedLength);
                 if (decoded != NULL) {
                     if (raytmxState->tileLayer->compression == NULL) { /* If the Base64-encoded data is uncompressed */
                         /* Iterate through N bytes ('decodedLength') with every four bytes being a single GID */
                         /* resulting in N / 4 tiles */
                         uint32_t* iterator = (uint32_t*)decoded;
-                        for (size_t i = 0; i < decodedLength / 4; i++) {
+                        for (int i = 0; i < decodedLength / 4; i++) {
                             AddTileLayerTile(raytmxState, *iterator);
                             iterator += 1; /* Point to the next unsigned, 32-bit integer in the decoded data */
                         }
                     } else { /* If the Base-64encoded data is also compressed */
-                        if (strcmp(raytmxState->tileLayer->compression, "gzip") == 0 ||
-                                strcmp(raytmxState->tileLayer->compression, "zlib") == 0 ||
-                                strcmp(raytmxState->tileLayer->compression, "zstd") == 0) {
-                            /* None of the compression methods are supported at this time */
-                            TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" cannot be parsed because \"%s\" compression is "
-                                "not supported", raytmxState->layer->name, raytmxState->tileLayer->compression);
-                        } else {
+                        /* TODO: Uncomment if or when raylib's DecompressData() is found to work. At the moment, it */
+                        /* calculates the length of the decompressed data as zero and fails. This is true for "gzip" */
+                        /* and "zlib" layers. */
+                        // if (strcmp(raytmxState->tileLayer->compression, "gzip") == 0 ||
+                                // strcmp(raytmxState->tileLayer->compression, "zlib") == 0) {
+                            // /* "zlib" and "gzip" both use the DEFLATE algorithm and raylib provides a decompression */
+                            // /* function, when built with SUPPORT_COMPRESSION_API (default), so both are supported */
+                            // int decompressedLength;
+                            // unsigned char* decompressed = DecompressData(decoded, decodedLength, &decompressedLength);
+                            // if (decompressed != NULL && decompressedLength > 0) {
+                                // uint32_t* iterator = (uint32_t*)decompressed;
+                                // for (int i = 0; i < decompressedLength / 4; i++) {
+                                    // AddTileLayerTile(raytmxState, *iterator);
+                                    // iterator += 1; /* Point to the next unsigned integer in the decompressed data */
+                                // }
+                                // MemFree(decompressed); /* Free the memory allocated by DecompressData() */
+                            // } else { /* raylib wasn't built with compression or allocation failed */
+                                // TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" compressed with \"%s\" cannot be parsed "
+                                    // "because DEFLATE decompression failed - either raylib was not built with "
+                                    // "SUPPORT_COMPRESSION_API or memory allocation failed", raytmxState->layer->name,
+                                    // raytmxState->tileLayer->compression);
+                            // }
+                        // } else {
                             TraceLog(LOG_ERROR, "RAYTMX: Layer \"%s\" cannot be parsed because the compression method "
-                                "\"%s\" is unknown", raytmxState->layer->name, raytmxState->tileLayer->compression);
-                        }
+                                "\"%s\" is unsupported", raytmxState->layer->name, raytmxState->tileLayer->compression);
+                        // }
                     }
+                    MemFree(decoded); /* Free the memory allocated by DecodeDataBase64() */
                 } else {
                     TraceLog(LOG_ERROR, "RAYTMX: Unable to decode Base64 data for layer \"%s\"",
                         raytmxState->layer->name);
@@ -3745,58 +3761,6 @@ void StringConcatenate(char* destination, const char* source) {
 #else
     strcat_s(destination, strlen(destination) + strlen(source) + 1, source);
 #endif
-}
-
-unsigned char* DecodeBase64(const char* encoded, size_t encodedLength, size_t* decodedLength) {
-    /* Base64 data is encoded by replacing specific 6-bit digits with an ASCII character with the digit-to-ASCII */
-    /* mapping defined in RFC 4648. The table below is the inverse, an ASCII-to-digit mapping where the encoded */
-    /* <ASCII character> - 43 is used as the index. For example, bits 111110 (value 62) are encoded as the '+' ASCII */
-    /* character. Using this table, 'decodeTable[+ - 43]' will get the digit at index zero, 62 (111110). The indexes */
-    /* with value 255 are just fillers; <ASCII character> - 43 will never result in those indexes. */
-    static unsigned char decodeTable[] = {
-        62, 255, 255, 255, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 255, 255, 255, 255, 255, 255, 255, 0, 1, 2, 3, 4,
-        5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 255, 255, 255, 255, 255, 255, 26,
-        27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
-    };
-
-    /* Sort-of bounds check. When encoding, every 24 bits ends up ended as 32 bits (four bytes). If the encoded */
-    /* string's length is not a multiple of four, some amount of those 24 bits is missing; the original data cannot */
-    /* be reproduced and the decoding algorithm here will end up trying to decode adjacent memory. Cannot continue. */
-    if (encodedLength % 4 != 0) { /* If the encoded string is an unusable length */
-        TraceLog(LOG_ERROR, "RAYTMX: A Base64-encoded string had an incorrect length (%zu)", encodedLength);
-        *decodedLength = 0;
-        return NULL;
-    }
-
-    /* Calculate the length of the decoded data. This is mostly straightforward as each character of the input maps */
-    /* to six bits with the exception of '=' (padding, not decoded). In other words, 32 bits input = 24 bits output. */
-    *decodedLength = encodedLength / 4 * 3; /* Decoded length = 3/4 encoded length because 24/32 = 3/4 */
-    if (encoded[encodedLength - 1] == '=')
-        *decodedLength -= 1; /* Subtract eight bits (assumed to be a byte) because '=' is padding, not data */
-    if (encoded[encodedLength - 2] == '=')
-        *decodedLength -= 1;
-
-    unsigned char* decoded = (unsigned char*)MemAllocZero((unsigned int)*decodedLength);
-    /* Iterate through each (ASCII) character in the encoded string */
-    for (int i = 0, j = 0; i < encodedLength;) {
-        /* Map four of the encoded characters to four sextets (6-bit digits). '=' is padding so it maps to zero. */
-        /* Note: '0 & i++' evaluates to integer value zero while incrementing 'i' by one */
-        uint32_t sextet1 = (encoded[i] == '=') ? (0 & i++) : (decodeTable[(int)encoded[i++] - 43]);
-        uint32_t sextet2 = (encoded[i] == '=') ? (0 & i++) : (decodeTable[(int)encoded[i++] - 43]);
-        uint32_t sextet3 = (encoded[i] == '=') ? (0 & i++) : (decodeTable[(int)encoded[i++] - 43]);
-        uint32_t sextet4 = (encoded[i] == '=') ? (0 & i++) : (decodeTable[(int)encoded[i++] - 43]);
-        /* Concatenate the four sextets and store them. Although the variable is 32 bits, only 24 will be used. */
-        uint32_t concatenated = (sextet1 << 18) + (sextet2 << 12) + (sextet3 << 6) + (sextet4 << 0);
-        /* Copy the three octets (three 8-bit digits, 24 bits total) of the concatenated integer to the output buffer */
-        if (j < *decodedLength)
-            decoded[j++] = (concatenated >> 16) & 0xFF;
-        if (j < *decodedLength)
-            decoded[j++] = (concatenated >> 8) & 0xFF;
-        if (j < *decodedLength)
-            decoded[j++] = (concatenated >> 0) & 0xFF;
-    }
-
-    return decoded;
 }
 
 #endif /* RAYTMX_IMPLEMENTATION */
