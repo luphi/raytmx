@@ -47,9 +47,6 @@
 #include "raylib.h"
 #include "rlgl.h"
 
-#define HOXML_IMPLEMENTATION
-#include "hoxml.h"
-
 #ifndef RAYTMX_DEC
     #define RAYTMX_DEC
 #endif /* RAYTMX_DEC */
@@ -531,6 +528,9 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags);
 #endif /* RAYTMX_H */
 
 #ifdef RAYTMX_IMPLEMENTATION
+
+#define HOXML_IMPLEMENTATION
+#include "hoxml.h"
 
 /******************/
 /* Implementation */
