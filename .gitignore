@@ -20,6 +20,9 @@ x86/
 [Bb]in/
 [Oo]bj/
 
+# Tiled artifacts
+*.tiled-session
+
 # OS thumbnail files
 [Tt]humbs.db
 *.DS_Store
