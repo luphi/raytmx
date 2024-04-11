@@ -5,6 +5,8 @@
 *.bin
 *.dll
 *.exe
+# Extension-less binary on *nix:
+example/raytmx-example
 
 # Visual Studio artifacts
 .vs/

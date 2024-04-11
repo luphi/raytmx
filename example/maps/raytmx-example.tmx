@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.10.1" orientation="orthogonal" renderorder="right-up" width="36" height="52" tilewidth="16" tileheight="16" infinite="0" parallaxoriginx="288" parallaxoriginy="416" nextlayerid="18" nextobjectid="25">
  <tileset firstgid="1" name="ruins" tilewidth="16" tileheight="16" tilecount="140" columns="7">
-  <image source="ruins.png" width="112" height="320"/>
+  <image source="../tilesets/ruins.png" width="112" height="320"/>
  </tileset>
  <tileset firstgid="141" name="grass" tilewidth="16" tileheight="16" tilecount="40" columns="4">
-  <image source="grass.png" width="64" height="160"/>
+  <image source="../tilesets/grass.png" width="64" height="160"/>
  </tileset>
  <tileset firstgid="181" name="fade" tilewidth="16" tileheight="16" tilecount="6" columns="2">
-  <image source="fade.png" width="32" height="48"/>
+  <image source="../tilesets/fade.png" width="32" height="48"/>
  </tileset>
- <tileset firstgid="187" source="shadows.tsx"/>
- <tileset firstgid="203" source="trees.tsx"/>
+ <tileset firstgid="187" source="../tilesets/shadows.tsx"/>
+ <tileset firstgid="203" source="../tilesets/trees.tsx"/>
  <objectgroup id="15" name="Text">
   <object id="12" x="336" y="576" width="48" height="17.875">
    <text fontfamily="Segoe UI" pixelsize="12" wrap="1" color="#55ffff">raytmx</text>

@@ -1,4 +1,4 @@
-/* Copyright (c) 2023 Luke Philipsen
+/* Copyright (c) 2024 Luke Philipsen
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -243,7 +243,7 @@ typedef struct tmx_image_layer {
 
 /**
  * Model of multiple layer elements: <layer>, <objectgroup>, <imagelayer>, or <group>. Defines a layer with attributes
- * common to all, more-specific layer types. The more-specific attributes 
+ * common to all, more-specific layer types. The more-specific attributes
  */
 typedef struct tmx_layer {
     TmxLayerType type; /**< The specific layer type indicating which associated layer ('exact') has mspecific values. */
@@ -620,7 +620,7 @@ typedef struct raytmx_text_line_node {
 } RaytmxTextLineNode;
 typedef struct raytmx_state {
     RaytmxDocumentFormat format;
-    char tmxDirectory[512];
+    char documentDirectory[512];
     bool isSuccess;
 
     /* Variables intended for TMX (map) parsing */
@@ -697,6 +697,7 @@ Color GetColorFromHexString(const char* hex);
 int32_t GetGid(int32_t rawGid, bool* isFlippedHorizontally, bool* isFlippedVertically, bool* isFlippedDiagonally,
     bool* isRotatedHexagonal120);
 void* MemAllocZero(unsigned int size);
+char* GetDirectoryPath2(const char* filePath);
 char* JoinPath(const char* prefix, const char* suffix);
 void StringCopyN(char* destination, const char* source, size_t number);
 void StringConcatenate(char* destination, const char* source);
@@ -954,7 +955,7 @@ RAYTMX_DEC void DrawTMXLayers(TmxMap* map, Camera2D* camera, TmxLayer* layers, u
 RAYTMX_DEC void AnimateTMX(TmxMap* map) {
     if (map == NULL)
         return;
-    
+
     float dt = GetFrameTime(); /* Returns the duration, in seconds, of the last frame drawn */
     /* Iterate through the tiles, searching for those that are animations */
     for (uint32_t gid = 0; gid < map->gidsToTilesLength; gid++) {
@@ -1107,7 +1108,7 @@ void ParseDocument(RaytmxState* raytmxState, const char* fileName) {
     }
     size_t contentLength = strlen(content);
 
-    StringCopy(raytmxState->tmxDirectory, GetDirectoryPath(fileName));
+    StringCopy(raytmxState->documentDirectory, GetDirectoryPath2(fileName));
 
     hoxml_context_t hoxmlContext[1];
     size_t bufferLength = contentLength;
@@ -1362,7 +1363,8 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                 raytmxState->tileset->source = (char*)MemAlloc((unsigned int)strlen(hoxmlContext->value) + 1);
                 StringCopy(raytmxState->tileset->source, hoxmlContext->value);
                 /* 'source' points to an external TSX file that defines the majority of the tileset. Try to load it. */
-                RaytmxExternalTileset externalTileset = LoadTSX(hoxmlContext->value);
+                RaytmxExternalTileset externalTileset = LoadTSX(JoinPath(raytmxState->documentDirectory,
+                    hoxmlContext->value));
                 if (externalTileset.isSuccess) {
                     /* A <tileset> within a <map> will have two attributes: 'firstgid' and 'source.' The rest of */
                     /* the tileset's details are in the external TSX that 'source' points to. They need to be merged. */
@@ -2091,7 +2093,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     AddTileLayerTile(raytmxState, atoi(valueAsString)); /* Read the value as an integer GID */
                 }
             } /* strcmp(raytmxState->tileLayer->encoding, "csv") == 0 */
-            
+
             if (tiles != NULL) { /* If there was no error in parsing the data and there's a linked list of tiles */
                 /* Allocate the array and assign 0 to every index to be safe */
                 uint32_t* tiles = (uint32_t*)MemAlloc(sizeof(uint32_t) * raytmxState->layerTilesLength);
@@ -3598,7 +3600,7 @@ RaytmxCachedTextureNode* LoadCachedTexture(RaytmxState* raytmxState, const char*
     }
 
     /* Try to load the texture */
-    char* fullPath = JoinPath(raytmxState->tmxDirectory, fileName);
+    char* fullPath = JoinPath(raytmxState->documentDirectory, fileName);
     Texture2D texture = LoadTexture(fullPath);
     if (texture.id == 0) { /* If loading the texture failed */
         TraceLog(LOG_ERROR, "RAYTMX: Unable to load texture \"%s\"", fullPath);
@@ -3638,7 +3640,7 @@ RaytmxCachedTemplateNode* LoadCachedTemplate(RaytmxState* raytmxState, const cha
     }
 
     /* Load the template from the external TX file */
-    char* fullPath = JoinPath(raytmxState->tmxDirectory, fileName);
+    char* fullPath = JoinPath(raytmxState->documentDirectory, fileName);
     RaytmxObjectTemplate objectTemplate = LoadTX(fullPath);
     if (!objectTemplate.isSuccess) { /* If loading the template failed */
         TraceLog(LOG_ERROR, "RAYTMX: Unable to load template \"%s\"", fullPath);
@@ -3741,25 +3743,51 @@ void* MemAllocZero(unsigned int size) {
     return buffer;
 }
 
+/* "Get directory for a given filePath" */
+/* raylib's GetDirectoryPath() doesn't work as described so this is used in its place */
+char* GetDirectoryPath2(const char* filePath) {
+    static char directoryPath[260]; /* Max path length on Windows, the bottleneck, is 260 characters */
+    memset(directoryPath, '\0', 260);
+    size_t length = strlen(filePath);
+    /* Paths beginning with a Windows drive letter (C:\, D:\, etc.) or beginning with a slash are absolute paths */
+    if (length >= 2 && (filePath[1] == ':' || filePath[0] == '\\' || filePath[0] == '/')) { /* If absolute */
+        if (IsPathFile(filePath)) /* If filePath points to a file, and we already know it's absolute */
+            StringCopy(directoryPath, filePath);
+        else { /* If filePath points to a directory, and we already know it's absolute */
+            StringCopy(directoryPath, filePath);
+            return directoryPath;
+        }
+    } else /* If filePath is relative */
+        StringCopy(directoryPath, JoinPath(GetWorkingDirectory(), filePath));
+
+    /* The goal is to return part of filePath, up to the last slash */
+    length = strlen(directoryPath);
+    char* iterator = directoryPath + length - 1;
+    /* Iterate backwards until a slash is found */
+    while (iterator != directoryPath && *iterator != '\0' && *iterator != '\\' && *iterator != '/')
+        iterator -= 1;
+    *(iterator + 1) = '\0'; /* Place a null terminator after the slash to effectively end the string there */
+    return directoryPath;
+}
+
 char* JoinPath(const char* prefix, const char* suffix) {
-    static char appendedPath[256]; /* Max path length on Windows, the bottleneck, is 260 characters */
-    memset(appendedPath, '\0', 256);
-    /* Do a path length check. 256 is used as the cutoff due to the chance of us adding a '/' in there. */
+    static char joinedPath[260]; /* Max path length on Windows, the bottleneck, is 260 characters */
+    memset(joinedPath, '\0', 260);
+    StringCopy(joinedPath, prefix);
     size_t prefixLength = strlen(prefix);
-    if (prefixLength + strlen(suffix) >= 256)
-        return appendedPath; /* Empty string */
+    if ((prefixLength >= 1) && (joinedPath[prefixLength - 1] != '/') && (joinedPath[prefixLength - 1] != '\\'))
+#ifdef _WIN32
+        joinedPath[prefixLength] = '\\'; /* Append the path with a '\\' separator */
+#else
+        joinedPath[prefixLength] = '/'; /* Append the path with a '/' separator */
+#endif
     const char* suffixStart = suffix;
-    /* Check for ".." at the start of the appended path/file. We want to ignore some chacracters, but not those. */
-    if (strncmp(suffix, "..", 2) != 0) {
-        /* Ignore any prefixed path indicators (e.g. "./") by iterating past them */
-        while ((*suffixStart == '.') || (*suffixStart == '/') || (*suffixStart == '\\'))
-            suffixStart += 1; /* Move the start of the string to the index after this one */
-    }
-    StringCopy(appendedPath, prefix);
-    if ((prefixLength >= 1) && (appendedPath[prefixLength - 1] != '/'))
-        appendedPath[prefixLength] = '/'; /* Swap out '\0' with a '/'. The rest of the buffer is still '\0'. */
-    StringConcatenate(appendedPath, suffixStart);
-    return appendedPath;
+    size_t suffixLength = strlen(suffix);
+    if (suffixLength >= 2 && suffix[0] == '.' && (suffix[1] == '/' || suffix[1] == '\\'))
+        suffixStart += 2; /* Skip over the "this directory" part (e.g. "./a.tsx" -> "a.tsx") */
+    /* Note: ".." is kept in the joined path intentionally although it is possible to exceed 260 characters. TODO? */
+    StringConcatenate(joinedPath, suffixStart);
+    return joinedPath;
 }
 
 void StringCopy(char* destination, const char* source) {

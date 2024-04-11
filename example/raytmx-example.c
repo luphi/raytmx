@@ -9,7 +9,7 @@
 int main(int argc, char **argv) {
     /* This map makes use of many TMX features making it useful for demonstrations. It will be adjacent to the */
     /* executable once built. */
-    const char* tmx = "raytmx-example.tmx";
+    const char* tmx = "maps/raytmx-example.tmx";
 
     /* Configure the window with a resolution and title. This example will also target 60 frames per second. */
     const int screenWidth = 1400, screenHeight = 1400;
