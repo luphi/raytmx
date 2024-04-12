@@ -423,6 +423,7 @@ typedef struct tmx_text_line {
  * Model of a <map> element along with some pre-calculated objects for efficient drawing.
  */
 typedef struct tmx_map {
+    char* fileName; /**< File name of the TMX file with extension. */
     TmxOrientation orientation; /**< Map orientation. May be orthogonal, isometric, staggered, or hexagonal. */
     TmxRenderOrder renderOrder; /**< Order in which tiles on tile layers are rendered. */
     uint32_t width; /**< Width of this map in tiles. */
@@ -722,6 +723,8 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
     }
 
     /* Copy some top-level map properties */
+    map->fileName = (char*)MemAllocZero((unsigned int)strlen(fileName) + 1);
+    StringCopy(map->fileName, GetFileName(fileName));
     map->orientation = raytmxState->mapOrientation;
     map->renderOrder = raytmxState->mapRenderOrder;
     map->width = raytmxState->mapWidth;
@@ -862,16 +865,21 @@ RAYTMX_DEC void UnloadTMX(TmxMap* map) {
     if (map == NULL)
         return;
 
+    if (map->fileName != NULL)
+        MemFree(map->fileName);
+
     if (map->properties != NULL) {
         for (uint32_t i = 0; i < map->propertiesLength; i++)
             FreeProperty(map->properties[i]);
         MemFree(map->properties);
     }
+
     if (map->tilesets != NULL) {
         for (uint32_t i = 0; i < map->tilesetsLength; i++)
             FreeTileset(map->tilesets[i]);
         MemFree(map->tilesets);
     }
+
     if (map->layers != NULL) {
         for (uint32_t i = 0; i < map->layersLength; i++)
             FreeLayer(map->layers[i]);
