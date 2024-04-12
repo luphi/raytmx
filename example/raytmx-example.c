@@ -19,8 +19,10 @@ int main(int argc, char **argv) {
 
     /* Load the map. If loading fails, NULL will be returned and details will be TraceLog()'d. */
     TmxMap* map = LoadTMX(tmx);
-    if (map == NULL)
+    if (map == NULL) {
+        TraceLog(LOG_ERROR, "Failed to load TMX \"%s\"", tmx);
         return EXIT_FAILURE;
+    }
 
     /* Create a camera for efficient panning and zooming. The initial target will be the center of the map. */
     Camera2D camera;

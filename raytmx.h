@@ -716,8 +716,10 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
     /* Do format-agnostic parsing of the document. The state object will be populated with raytmx's models of the */
     /* equivalent TMX, TSX, and/or TX elements. */
     ParseDocument(raytmxState, fileName);
-    if (!raytmxState->isSuccess)
+    if (!raytmxState->isSuccess) {
+        UnloadTMX(map);
         return NULL;
+    }
 
     /* Copy some top-level map properties */
     map->orientation = raytmxState->mapOrientation;
@@ -1160,7 +1162,6 @@ void ParseDocument(RaytmxState* raytmxState, const char* fileName) {
             default: break; /* Keep the compiler happy */
             }
             UnloadFileText(content);
-            MemFree(hoxmlContext);
             return;
         }
     }
