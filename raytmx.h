@@ -916,7 +916,7 @@ RAYTMX_DEC void DrawTMXLayers(TmxMap* map, Camera2D* camera, TmxLayer* layers, u
 
         /* All types of layers can have a couple attributes that affect color: 'opacity' and 'tintcolor' */
         Color layerTint = tint;
-        layerTint.a *= (unsigned char)layer.opacity;
+        layerTint.a = (unsigned char)((double)layerTint.a * layer.opacity);
         if (layer.hasTintColor)
             layerTint = ColorTint(layerTint, layer.tintColor);
 
@@ -3303,7 +3303,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer* layers, uint32_t layersLength, in
                 if (layer.exact.tileLayer.height != 0)
                     TraceLog(logLevel, "%s    height: %u", padding, layer.exact.tileLayer.height);
                 if (tmxLogFlags & LOG_SKIP_TILES)
-                    TraceLog(logLevel, "%s    skipping %u", padding, layer.exact.tileLayer.tilesLength);
+                    TraceLog(logLevel, "%s    skipping %u tiles", padding, layer.exact.tileLayer.tilesLength);
                 else {
                     for (uint32_t j = 0; j < layer.exact.tileLayer.tilesLength; j++) {
                         if (j == 0)
