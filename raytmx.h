@@ -356,7 +356,7 @@ typedef struct tmx_tile {
     Rectangle sourceRect; /**< Sub-rectangle within a tileset to extract that is to be drawn. */
     Texture2D texture; /**< Texture in VRAM to be used to draw. May be used whole or as a source of a sub-rectangle. */
     Vector2 offset; /**< Offset in pixels to be applied to the tile, derived from the tileset. */
-    TmxAnimation animation; /**< (Optional) animation, may be NULL. */
+    TmxAnimation animation; /**< (Optional) animation. */
     bool hasAnimation; /**< When true, indicates 'animation' is set. */
     uint32_t frameIndex; /**< For animations, the current animation frame to draw. */
     float frameTime; /**< For animations, an accumulator. The time, in seconds, the current frame has been drawn. */
@@ -537,6 +537,14 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags);
 /* Implementation */
 
 #define TMX_LINE_THICKNESS 3.0f /* Thickness, in pixels, that outlines of specific objects are drawn with */
+
+/* Bit flags that GIDs may be masked with in order to indicate transformations for individual tiles */
+enum tmx_flip_flags {
+    FLIP_FLAG_HORIZONTAL = 0x80000000,
+    FLIP_FLAG_VERTICAL = 0x40000000,
+    FLIP_FLAG_DIAGONAL = 0x20000000,
+    FLIP_FLAG_ROTATE_120 = 0x10000000
+};
 
 /* Declarations of some private stuff used to implement public stuff */
 typedef struct raytmx_external_tileset RaytmxExternalTileset;
@@ -2969,8 +2977,14 @@ void DrawTMXLayerTile(TmxMap* map, Rectangle screenRect, int32_t rawGid, int pos
 
     if (tile.hasAnimation) {
         /* Animations aren't really tiles. Instead, they contain frames that identify a tile to draw for the duration */
-        /* of that frame. That current tile should be drawn. */
-        DrawTMXLayerTile(map, screenRect, tile.gid + tile.animation.frames[tile.frameIndex].id, posX, posY, tint);
+        /* of that frame. */
+        /* The 'gid' of an animation tile is assigned with the first GID of the tileset and the frames have local IDs */
+        /* within that tileset. The GID of the frame, then, can be calculated by adding them together. */
+        gid = tile.gid + tile.animation.frames[tile.frameIndex].id;
+        /* Copy any flip flags that may be present in the layer data. */
+        gid |= rawGid & (FLIP_FLAG_HORIZONTAL | FLIP_FLAG_VERTICAL | FLIP_FLAG_DIAGONAL | FLIP_FLAG_ROTATE_120);
+        /* Draw the tile using the calculated GID of the frame, along with the possible flags. */
+        DrawTMXLayerTile(map, screenRect, gid, posX, posY, tint);
     } else {
         /* Determine where the tile will be drawn. raylib's coordinates consider [x, y] to be the top-left corner of */
         /* the rectangle being drawn. The TMX documentation complicates things a bit saying "Larger tiles will extend */
@@ -3725,13 +3739,6 @@ Color GetColorFromHexString(const char* hex) {
 
     return color;
 }
-
-enum tmx_flip_flags {
-    FLIP_FLAG_HORIZONTAL = 0x80000000,
-    FLIP_FLAG_VERTICAL = 0x40000000,
-    FLIP_FLAG_DIAGONAL = 0x20000000,
-    FLIP_FLAG_ROTATE_120 = 0x10000000
-};
 
 int32_t GetGid(int32_t rawGid, bool* isFlippedHorizontally, bool* isFlippedVertically, bool* isFlippedDiagonally,
         bool* isRotatedHexagonal120) {
