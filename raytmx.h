@@ -51,7 +51,7 @@
     #define RAYTMX_DEC
 #endif /* RAYTMX_DEC */
 
-#ifdef __cpluspus
+#ifdef __cplusplus
     extern "C" {
 #endif /* __cpluspus */
 
