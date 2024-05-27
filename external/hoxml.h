@@ -1,4 +1,4 @@
-/* Copyright (c) 2023 Luke Philipsen
+/* Copyright (c) 2024 Luke Philipsen
 
   Permission is hereby granted, free of charge, to any person obtaining
   a copy of this software and associated documentation files (the
@@ -49,7 +49,7 @@
     #define HOXML_DECL
 #endif /* HOXML_DECL */
 
-#ifdef __cpluspus
+#ifdef __cplusplus
     extern "C" {
 #endif /* __cpluspus */
 
@@ -75,6 +75,12 @@ typedef enum {
     HOXML_CODE_PROCESSING_INSTRUCTION_END /**< A processing instruction ended and its content is available. */
 } hoxml_code_t;
 
+typedef enum { HOXML_ENC_UNKNOWN = 0, HOXML_ENC_UTF_8, HOXML_ENC_UTF_16_LE, HOXML_ENC_UTF_16_BE } hoxml_enc_t;
+
+typedef enum { HOXML_CASE_SENSITIVE = 0, HOXML_CASE_INSENSITIVE } hoxml_case_t;
+
+typedef enum { HOXML_REF_TYPE_ENTITY = 0, HOXML_REF_TYPE_NUMERIC, HOXML_REF_TYPE_HEX } hoxml_ref_type_t;
+
 typedef struct hoxml_node hoxml_node_t; /* Forward declaration */
 
 /**
@@ -94,8 +100,9 @@ typedef struct {
     const char *xml, *iterator;
     char *buffer, *ref_start;
     hoxml_node_t* stack;
+    hoxml_enc_t encoding;
     int8_t state, post_state, return_state, err_return_state;
-    uint8_t encoding, stream_length;
+    uint8_t stream_length;
     uint32_t stream;
     size_t buffer_length, xml_length;
 } hoxml_context_t;
@@ -103,7 +110,7 @@ typedef struct {
 /**
  * Sets up the hoxml context object to begin parsing. Following this, call hoxml_parse() until
  * HOXML_CODE_END_OF_DOCUMENT or one of the error values is returned.
- * 
+ *
  * @param context Pointer to an allocated hoxml context object. This instance will be modified.
  * @param buffer A pointer to some contiguous block of memory for hoxml to use. This will also be modified, frequently.
  * @param buffer_length The length, in bytes, of the buffer handed to hoxml as the 'buffer' parameter.
@@ -132,7 +139,7 @@ HOXML_DECL void hoxml_realloc(hoxml_context_t* context, char* buffer, size_t buf
  * @param context An initialized hoxml context object. This should be treated as read-only until parsing is done.
  * @param xml XML content as a string.
  * @param xml_length Length of the XML content in bytes.
- * @return 
+ * @return
  */
 HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, size_t xml_length);
 
@@ -209,12 +216,6 @@ typedef enum {
     HOXML_POST_STATE_TAG_END,
     HOXML_POST_STATE_ATTRIBUTE_END,
 } hoxml_state_t;
-
-typedef enum { HOXML_ENC_UNKNOWN = 0, HOXML_ENC_UTF_8, HOXML_ENC_UTF_16_LE, HOXML_ENC_UTF_16_BE } hoxml_enc_t;
-
-typedef enum { HOXML_CASE_SENSITIVE = 0, HOXML_CASE_INSENSITIVE } hoxml_case_t;
-
-typedef enum { HOXML_REF_TYPE_ENTITY = 0, HOXML_REF_TYPE_NUMERIC, HOXML_REF_TYPE_HEX } hoxml_ref_type_t;
 
 enum hoxml_node_flags {
     HOXML_FLAG_END_TAG = 0x01, /* 0000 0001 - the node is a dedicated end tag (not an empty element) */
@@ -310,8 +311,9 @@ hoxml_char_t hoxml_dec_char(const char* str, size_t str_length, hoxml_enc_t enc)
 hoxml_char_t hoxml_enc_char(uint32_t value, hoxml_enc_t enc);
 char* hoxml_to_ascii(const char* str, hoxml_enc_t enc);
 uint32_t hoxml_strlen(char* str, hoxml_enc_t enc);
-uint8_t hoxml_strcmp(char* str1, hoxml_enc_t enc1, char* str2, hoxml_enc_t enc2, hoxml_case_t sens);
-char* hoxml_strstr(char* haystack, hoxml_enc_t enc_haystack, char* needle, hoxml_enc_t enc_needle, hoxml_case_t sens);
+uint8_t hoxml_strcmp(const char* str1, hoxml_enc_t enc1, const char* str2, hoxml_enc_t enc2, hoxml_case_t sensitivity);
+const char* hoxml_strstr(const char* haystack, hoxml_enc_t enc_haystack, const char* needle, hoxml_enc_t enc_needle,
+    hoxml_case_t sensitivity);
 #ifdef HOXML_DEBUG
     void hoxml_log(const char* message, ...);
     #define HOXML_LOG(s) hoxml_log(s);
@@ -367,7 +369,7 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, s
     uint8_t bytes_to_iterate = 0; /* Number of bytes iterated this loop - may need to be undone outside the loop */
     while (context->state >= HOXML_STATE_NONE && context->state <= HOXML_STATE_DONE) {
         size_t bytes_remaining = (size_t)(context->xml_length - (context->iterator - context->xml));
-        uint8_t bytes_to_copy = (uint8_t)(bytes_remaining <= 4 ? bytes_remaining : 4) - context->stream_length;
+        uint8_t bytes_to_copy = (bytes_remaining <= 4 ? bytes_remaining : 4) - context->stream_length;
         if (bytes_to_copy < 4)
             memcpy((char*)&context->stream + context->stream_length, context->iterator, bytes_to_copy);
         else
@@ -792,10 +794,10 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, s
         case HOXML_STATE_PROCESSING_INSTRUCTION_CONTENT: /* Found space after a PI name, looking for '?' or chars */
             HOXML_LOG("HOXML_STATE_PROCESSING_INSTRUCTION_CONTENT")
             if (c.decoded == '?') { /* "?>" marks the end of a processing instruction */
-                char* declaration;
+                const char* declaration;
                 if ((declaration = hoxml_strstr(context->content, context->encoding, "encoding=", HOXML_ENC_UNKNOWN,
                         HOXML_CASE_SENSITIVE)) != NULL) {
-                    char* encoding;
+                    const char* encoding;
                     if ((encoding = hoxml_strstr(declaration, context->encoding, "\"", HOXML_ENC_UNKNOWN,
                             HOXML_CASE_SENSITIVE)) != NULL || (encoding = hoxml_strstr(declaration, context->encoding,
                             "'", HOXML_ENC_UNKNOWN, HOXML_CASE_SENSITIVE)) != NULL) {
@@ -817,7 +819,7 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, s
                                     HOXML_CASE_INSENSITIVE) == 0 && hoxml_strcmp(encoding, context->encoding,
                                     "'UTF-8'", HOXML_ENC_UNKNOWN, HOXML_CASE_INSENSITIVE) == 0) {
                                 /* If the UTF-8 BOM was found but the encoding declaration was not "UTF-8" then we */
-                                /* have a contradiction and, therefore */
+                                /* have a contradiction and, therefore, an error */
                                 context->state = HOXML_STATE_ERROR_ENCODING;
                                 return HOXML_ERROR_ENCODING;
                             } break;
@@ -950,7 +952,7 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, s
 
 void hoxml_push_stack(hoxml_context_t* context) {
     /* If "allocating" a new node would overflow the buffer */
-    if ((context->stack == NULL && sizeof(hoxml_node_t) >= context->buffer_length) || (context->stack != NULL && 
+    if ((context->stack == NULL && sizeof(hoxml_node_t) >= context->buffer_length) || (context->stack != NULL &&
             context->stack->end + 1 + sizeof(hoxml_node_t) >= context->buffer + context->buffer_length)) {
         context->err_return_state = context->state;
         context->state = HOXML_STATE_ERROR_INSUFFICIENT_MEMORY;
@@ -1333,12 +1335,12 @@ uint32_t hoxml_strlen(char* str, hoxml_enc_t enc) {
     return len;
 }
 
-uint8_t hoxml_strcmp(char* str1, hoxml_enc_t enc1, char* str2, hoxml_enc_t enc2, hoxml_case_t sens) {
-    char *it1 = str1, *it2 = str2;
+uint8_t hoxml_strcmp(const char* str1, hoxml_enc_t enc1, const char* str2, hoxml_enc_t enc2, hoxml_case_t sensitivity) {
+    const char *it1 = str1, *it2 = str2;
     hoxml_char_t c1 = hoxml_dec_char(it1, 65535, enc1), c2 = hoxml_dec_char(it2, 65535, enc2);
     while (c1.decoded != 0 && c2.decoded != 0) {
-        if ((sens == HOXML_CASE_INSENSITIVE && HOXML_TO_LOWER(c1.decoded) != HOXML_TO_LOWER(c2.decoded)) ||
-                (sens == HOXML_CASE_SENSITIVE && c1.decoded != c2.decoded))
+        if ((sensitivity == HOXML_CASE_INSENSITIVE && HOXML_TO_LOWER(c1.decoded) != HOXML_TO_LOWER(c2.decoded)) ||
+                (sensitivity == HOXML_CASE_SENSITIVE && c1.decoded != c2.decoded))
             return 0;
         it1 += c1.bytes;
         c1 = hoxml_dec_char(it1, 65535, enc1);
@@ -1348,11 +1350,13 @@ uint8_t hoxml_strcmp(char* str1, hoxml_enc_t enc1, char* str2, hoxml_enc_t enc2,
     return *it2 == '\0';
 }
 
-char* hoxml_strstr(char* haystack, hoxml_enc_t enc_haystack, char* needle, hoxml_enc_t enc_needle, hoxml_case_t sens) {
-    char *it_haystack = haystack, *it_needle = needle;
-    hoxml_char_t c = hoxml_dec_char(it_haystack, 65535, enc_haystack), cn = hoxml_dec_char(it_needle, 65535, enc_needle);
+const char* hoxml_strstr(const char* haystack, hoxml_enc_t enc_haystack, const char* needle, hoxml_enc_t enc_needle,
+        hoxml_case_t sensitivity) {
+    const char *it_haystack = haystack, *it_needle = needle;
+    hoxml_char_t c = hoxml_dec_char(it_haystack, 65535, enc_haystack),
+        cn = hoxml_dec_char(it_needle, 65535, enc_needle);
     while (c.decoded != 0) {
-        if (c.decoded == cn.decoded && hoxml_strcmp(it_haystack, enc_haystack, it_needle, enc_needle, sens) != 0)
+        if (c.decoded == cn.decoded && hoxml_strcmp(it_haystack, enc_haystack, it_needle, enc_needle, sensitivity) != 0)
             return it_haystack;
         it_haystack += c.bytes;
         c = hoxml_dec_char(it_haystack, 65535, enc_haystack);
