@@ -1130,7 +1130,7 @@ void ParseDocument(RaytmxState* raytmxState, const char* fileName) {
 
     hoxml_context_t hoxmlContext[1];
     size_t bufferLength = contentLength;
-    char* buffer = MemAlloc((unsigned int)bufferLength);
+    char* buffer = (char*)MemAlloc((unsigned int)bufferLength);
     hoxml_init(hoxmlContext, buffer, bufferLength);
 
     hoxml_code_t code;
@@ -1150,7 +1150,7 @@ void ParseDocument(RaytmxState* raytmxState, const char* fileName) {
                 /* This is one we can recover from by expanding the buffer. In this case, it will be doubled. */
                 TraceLog(LOG_DEBUG, "RAYTMX: Allocating a new XML parsing buffer due to insufficient memory");
                 bufferLength *= 2;
-                void* newBuffer = MemAlloc((unsigned int)bufferLength);
+                char* newBuffer = (char*)MemAlloc((unsigned int)bufferLength);
                 hoxml_realloc(hoxmlContext, newBuffer, bufferLength);
                 MemFree(buffer);
                 buffer = newBuffer;
@@ -3726,7 +3726,7 @@ Color GetColorFromHexString(const char* hex) {
     hex += length - 1;
 
     char component[] = "\0\0\0"; /* Used to hold the two-digit component (e.g. "55" or "ff") */
-    for (int i = 0; i < length / 2; i++) { /* Iterate three or four times with four meaning alpha was included */
+    for (size_t i = 0; i < length / 2; i++) { /* Iterate three or four times with four meaning alpha was included */
         component[1] = *hex--; /* Store the char value 'hex' points to then point to the previous char */
         component[0] = *hex--; /* With this, 'component' will be something like { 'f', 'f', '\0' } */
         switch (i) {
