@@ -1,6 +1,6 @@
 # raytmx
 
-Header-only raylib library for loading and drawing Tiled's TMX tilemap documents. 
+Header-only raylib library for loading and drawing Tiled's TMX tilemap documents.
 
 ![example/raytmx-example.png](example/raytmx-example.png)
 
@@ -32,7 +32,7 @@ Header-only raylib library for loading and drawing Tiled's TMX tilemap documents
 - Concave polygon objects may not be drawn correctly due to drawing with fan triangulation from the centroid
 - Image transparency colors are parsed but their use is not implemented
 - Repetition of image layers is not implemented
-- Nested <properties> are not supported; they are merged into a single list of properties
+- Nested `<properties>` are not supported; they are merged into a single list of properties
 
 
 ## Usage
