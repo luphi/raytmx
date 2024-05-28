@@ -748,7 +748,7 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
     if (raytmxState->tilesetsRoot != NULL) { /* If there is at least one tileset */
         /* Allocate the array of tilesets and zeroize every index */
         TmxTileset* tilesets = (TmxTileset*)MemAllocZero(sizeof(TmxTileset) * raytmxState->tilesetsLength);
-        /* Copy the TmxTileset pointers into the array and free the nodes while we're at it */
+        /* Copy the TmxTileset pointers into the array */
         RaytmxTilesetNode* tilesetIterator = raytmxState->tilesetsRoot;
         for (uint32_t i = 0; tilesetIterator != NULL; i++) {
             TmxTileset tileset = tilesetIterator->tileset;
