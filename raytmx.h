@@ -523,7 +523,9 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags);
 
 #ifdef RAYTMX_IMPLEMENTATION
 
-#define HOXML_IMPLEMENTATION
+#ifndef HOXML_IMPLEMENTATION
+    #define HOXML_IMPLEMENTATION
+#endif
 #include "hoxml.h"
 
 /******************/
