@@ -1127,17 +1127,17 @@ void ParseDocument(RaytmxState* raytmxState, const char* fileName) {
     hoxml_init(hoxmlContext, buffer, bufferLength);
 
     hoxml_code_t code;
-    while ((code = hoxml_parse(hoxmlContext, content, contentLength)) != HOXML_CODE_END_OF_DOCUMENT) {
-        if (code > HOXML_CODE_END_OF_DOCUMENT) { /* If there's information about an element, attribute, whatever */
+    while ((code = hoxml_parse(hoxmlContext, content, contentLength)) != HOXML_END_OF_DOCUMENT) {
+        if (code > HOXML_END_OF_DOCUMENT) { /* If there's information about an element, attribute, whatever */
             switch (code) {
-            case HOXML_CODE_ELEMENT_BEGIN: HandleElementBegin(raytmxState, hoxmlContext); break;
-            case HOXML_CODE_ELEMENT_END: HandleElementEnd(raytmxState, hoxmlContext); break;
-            case HOXML_CODE_ATTRIBUTE: HandleAttribute(raytmxState, hoxmlContext);
-            case HOXML_CODE_PROCESSING_INSTRUCTION_BEGIN: break;
-            case HOXML_CODE_PROCESSING_INSTRUCTION_END: break;
+            case HOXML_ELEMENT_BEGIN: HandleElementBegin(raytmxState, hoxmlContext); break;
+            case HOXML_ELEMENT_END: HandleElementEnd(raytmxState, hoxmlContext); break;
+            case HOXML_ATTRIBUTE: HandleAttribute(raytmxState, hoxmlContext);
+            case HOXML_PROCESSING_INSTRUCTION_BEGIN: break;
+            case HOXML_PROCESSING_INSTRUCTION_END: break;
             default: break; /* No other cases to handle but compilers like to complain */
             }
-        } else if (code < HOXML_CODE_END_OF_DOCUMENT) { /* If there was an error, recoverable or not */
+        } else if (code < HOXML_END_OF_DOCUMENT) { /* If there was an error, recoverable or not */
             switch (code) {
             case HOXML_ERROR_INSUFFICIENT_MEMORY: {
                 /* This is one we can recover from by expanding the buffer. In this case, it will be doubled. */
