@@ -139,8 +139,6 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, s
     }
 #endif /* __cplusplus */
 
-#endif /* HOXML_H */
-
 #ifdef HOXML_IMPLEMENTATION
 
 /******************/
@@ -1457,3 +1455,5 @@ const char* hoxml_strstr(const char* haystack, const uint8_t haystack_encoding, 
 }
 
 #endif /* HOXML_IMPLEMENTATION */
+
+#endif /* HOXML_H */
