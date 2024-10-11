@@ -519,8 +519,6 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags);
     }
 #endif /* __cplusplus */
 
-#endif /* RAYTMX_H */
-
 #ifdef RAYTMX_IMPLEMENTATION
 
 #ifndef HOXML_IMPLEMENTATION
@@ -3832,3 +3830,5 @@ void StringConcatenate(char* destination, const char* source) {
 }
 
 #endif /* RAYTMX_IMPLEMENTATION */
+
+#endif /* RAYTMX_H */
