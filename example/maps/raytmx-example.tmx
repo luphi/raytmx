@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.10.1" orientation="orthogonal" renderorder="right-up" width="36" height="52" tilewidth="16" tileheight="16" infinite="0" parallaxoriginx="288" parallaxoriginy="416" nextlayerid="18" nextobjectid="25">
+<map version="1.8" tiledversion="1.8.0" orientation="orthogonal" renderorder="right-up" width="36" height="52" tilewidth="16" tileheight="16" infinite="0" parallaxoriginx="288" parallaxoriginy="416" nextlayerid="18" nextobjectid="25">
  <tileset firstgid="1" name="ruins" tilewidth="16" tileheight="16" tilecount="140" columns="7">
   <image source="../tilesets/ruins.png" width="112" height="320"/>
  </tileset>
@@ -72,12 +72,12 @@
   </data>
   </layer>
  </group>
- <layer id="17" name="Fog" width="36" height="52" parallaxx="0.2" parallaxy="0.2">
+ <layer id="17" name="Fog" width="36" height="52" visible="0" parallaxx="0.2" parallaxy="0.2">
   <data encoding="base64" compression="zlib">
    eJx911mSoDAMA9AcNEDg/oeY/kBVD3V6Pii22PEqK9cY4/65zvee5+fnOt779X473ue7nufPtfg+X7n5vq/3+eJ+sTZ7Tu43+z51P5Bf6Jnsdb7PsSu2xZ+Fvsjmu/+v9x4dk/uBzvibfdUZ+ZP17fOJjhu7E6vsd45vjozrjU+LtZE1L7HlQD46fdeHxCaxz9p7fHPbuuJvair263/7sFhrnUz+R88a3zjq+4lOY2tO3VM/9Dfxyn2Ob7/o9106khNlrc+ssw5ik/GzLxKHh/+LdVmbPNmv0Wn87am8t/+L5+hon+1J7ez9O3dta/7lu3r9bky7B57SF51imvFT3nj081ky8X9nX+OpsTbvz/j6mDX5Lr6pK/EUVxqfrN3kLrqfko1N9oy9aV88G52xX9/ujY7Goh32NFYt/LLejb0xWuPbf8bXunp4Fqc7340x1pk9v5sz1rTf9Cc5dp70P+eN+By96a287/ou8hc6rFf3jM7I+C4eW1MdH32+x7dOjbOYp1/JW+NF9Irp+e8cECfFI3OrnnzP2p4j9pd4ePLdODkf1G1sYqvzIfG3LsUn58MOb/XXGozcjs9ZX9rV9WhemtMkFj5bw/aJvDM5zN6Rty5cJy52jtf4zZ/+6u1js582d60+pU+8sgacabE5NW19y4eaE+94njWmbT1X7cs1fveKNdFxNG8LGfdrvtY56txHT89j57ucyvkq34/u5ta7WtE2Y2zuxGkx5Kr35qpzfGNuTfU/913jWx/GXdxJzBo/YqsxNv7d22K+dh3olnM3L1/jd91GPvlo3nGNbw4iZ5yirznYif4dFoujnil2PHWWbNeBdde8yLqVj/Y8NycXMt0Pzjm5kPUrpj+lX17V+NC1bJ6a81vTO95j7sXm5pHK2E87zvxsdOivudEGcd04N98SpxOfPruZy/axubM6FvqTB/HLWbe41Jk1nRcxasfh891+sqY89zSfePgvT7BfjIm1rT2Ndc7P3flH/DfHsUuZ5hr2Y/M4ZefYx8RY9jm3ebn44oxp3m0dybHkNPrimUC7zO8qffZS1shLOhbNMRrr8k89zRHFUbFlYUNjmjWw4+h9djP+C31H6RAX1vjWz8IW9Rh//ZFbdq+LAzufO27NA/7CBPnJXf/Nf59des7sOK1rZ+mKb0fJWxvym+Yirr9qn2P8rjF7xljcdaWOxS57KjFr3u5eWdMxz72xu882iVXiJ66KTeZc/7N/zwrz7DxV50LG+nc+NdcSk60Vcas5ceOzOdL2Prs0z20saD7ac0LbPJOICY2DiXNsMD7P5j1rxL2eX31O1Z/4J6b2jLZm1vjOSGs9/5zPYr59Yq7E9ebZjfO+6+sc3xx0fZt7a7I5nLPHGo9O87bQJd+QT2q3daOsddF4ap15zhAPEquua7HF2TjRd3LNWtf8cI2vvbFfXiXfEB8bQ62Bv85V9rczwbOOXErskjut8TuO9o1939jUPDz5TBzNdb7b8wv9+W+M7NVVd7nj/+a8fEWu5D31l/XOPfX3+bh5ivGXZ7h3c55/Chi2ww==
   </data>
  </layer>
- <objectgroup color="#400000ff" id="16" name="Doors">
+ <objectgroup color="#400000ff" id="16" name="Doors" visible="0">
   <object id="15" template="door.tx" x="368" y="240">
    <properties>
     <property name="direction" value="west"/>
@@ -98,7 +98,7 @@
    </properties>
   </object>
  </objectgroup>
- <objectgroup color="#40aa00ff" draworder="index" id="2" name="Walls">
+ <objectgroup color="#40aa00ff" draworder="index" id="2" name="Walls" visible="0">
   <properties>
    <property name="bool property" type="bool" value="true"/>
    <property name="color property" type="color" value="#ff55ffff"/>

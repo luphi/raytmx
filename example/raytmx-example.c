@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
     const char* tmx = "maps/raytmx-example.tmx";
 
     /* Configure the window with a resolution and title. This example will also target 60 frames per second. */
-    const int screenWidth = 1400, screenHeight = 1400;
+    const int screenWidth = 1024, screenHeight = 768;
     const float panSpeed = 150.0f;
     InitWindow(screenWidth, screenHeight, "raytmx example");
     SetTargetFPS(60);
@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 
     /* Create a camera for efficient panning and zooming. The initial target will be the center of the map. */
     Camera2D camera;
-    camera.zoom = 8.0f;
+    camera.zoom = 6.0f;
     camera.target.x = (float)(map->width * map->tileWidth) / 2.0f;
     camera.target.y = (float)(map->height * map->tileHeight) / 2.0f;
     camera.offset.x = (float)screenWidth / 2.0f;
@@ -42,6 +42,10 @@ int main(int argc, char **argv) {
             camera.target.y += panSpeed * GetFrameTime();
         if (IsKeyDown(KEY_UP))
             camera.target.y -= panSpeed * GetFrameTime();
+        if (IsKeyDown(KEY_KP_ADD))
+            camera.zoom += camera.zoom < 10.0f ? 0.25f : 0.0f;
+        if (IsKeyDown(KEY_KP_SUBTRACT))
+            camera.zoom -= camera.zoom > 1.0f ? 0.25f : 0.0f;
 
         BeginDrawing();
         {
