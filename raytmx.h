@@ -469,7 +469,7 @@ RAYTMX_DEC void UnloadTMX(TmxMap* map);
  * @param posY Y coordinate at which to draw the map. This corresponds to the top-left corner of the map.
  * @param tint A tint to be applied to the map and its layers. This tint is combined with any individual layer tints.
  */
-RAYTMX_DEC void DrawTMX(TmxMap* map, Camera2D* camera, int posX, int posY, Color tint);
+RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, int posX, int posY, Color tint);
 
 /**
  * Draw the given layers at the given position.
@@ -487,14 +487,14 @@ RAYTMX_DEC void DrawTMX(TmxMap* map, Camera2D* camera, int posX, int posY, Color
  * @param posY Y coordinate at which to draw the layers. This corresponds to the top-left corner of the layers.
  * @param tint A tint to be applied to the layers. This tint is combined with any individual layer tints.
  */
-RAYTMX_DEC void DrawTMXLayers(TmxMap* map, Camera2D* camera, TmxLayer* layers, uint32_t layersLength, int posX,
-    int posY, Color tint);
+RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const TmxLayer* layers, uint32_t layersLength,
+    int posX, int posY, Color tint);
 
 /**
  * Progress the animations of the given map in real-time. This is intended to be called once per frame, or once per
  * BeginDrawing() an EndDrawing() call. If called more or less frequently, animation speeds will be affected.
  *
- * @param map A load map model to be animated.
+ * @param map A loaded map model to be animated.
  */
 RAYTMX_DEC void AnimateTMX(TmxMap* map);
 
@@ -505,7 +505,7 @@ RAYTMX_DEC void AnimateTMX(TmxMap* map);
  * @param logLevel The level/severity with which to log the string (e.g. LOG_DEBUG, LOG_INFO, etc.).
  * @param map A loaded map to be logged.
  */
-RAYTMX_DEC void TraceLogTMX(int logLevel, TmxMap* map);
+RAYTMX_DEC void TraceLogTMX(int logLevel, const TmxMap* map);
 
 /**
  * Globally set logging options for TraceLogTMX() allowing for select types of information to be excluded.
@@ -675,11 +675,11 @@ void FreeTileset(TmxTileset tileset);
 void FreeProperty(TmxProperty property);
 void FreeLayer(TmxLayer layer);
 void FreeObject(TmxObject object);
-void DrawTMXTileLayer(TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
-void DrawTMXLayerTile(TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, Color tint);
-void DrawTMXObjectTile(TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, float width, float height,
-    Color tint);
-void DrawTMXObjectGroup(TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
+void DrawTMXTileLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
+void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, Color tint);
+void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, float width,
+    float height, Color tint);
+void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
 void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* tilesets, uint32_t tilesetsLength,
     int numSpaces);
 void TraceLogTMXProperties(int logLevel, TmxProperty* properties, uint32_t propertiesLength, int numSpaces);
@@ -893,7 +893,7 @@ RAYTMX_DEC void UnloadTMX(TmxMap* map) {
     MemFree(map);
 }
 
-RAYTMX_DEC void DrawTMX(TmxMap* map, Camera2D* camera, int posX, int posY, Color tint) {
+RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, int posX, int posY, Color tint) {
     if (map == NULL)
         return;
 
@@ -905,8 +905,8 @@ RAYTMX_DEC void DrawTMX(TmxMap* map, Camera2D* camera, int posX, int posY, Color
     DrawTMXLayers(map, camera, map->layers, map->layersLength, posX, posY, tint);
 }
 
-RAYTMX_DEC void DrawTMXLayers(TmxMap* map, Camera2D* camera, TmxLayer* layers, uint32_t layersLength, int posX,
-        int posY, Color tint) {
+RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const TmxLayer* layers, uint32_t layersLength,
+        int posX, int posY, Color tint) {
     if (map == NULL || layers == NULL || layersLength == 0)
         return;
 
@@ -988,7 +988,7 @@ RAYTMX_DEC void AnimateTMX(TmxMap* map) {
 
 static int tmxLogFlags = 0;
 
-RAYTMX_DEC void TraceLogTMX(int logLevel, TmxMap* map) {
+RAYTMX_DEC void TraceLogTMX(int logLevel, const TmxMap* map) {
     if (map == NULL)
         return;
 
@@ -2804,7 +2804,7 @@ void FreeObject(TmxObject object) {
     } /* object.text != NULL */
 }
 
-void DrawTMXTileLayer(TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXTileLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_TILE_LAYER || layer.exact.tileLayer.tilesLength == 0)
         return;
 
@@ -2952,7 +2952,7 @@ void DrawTextureTile(Texture2D texture, Rectangle source, Rectangle dest, bool f
     rlSetTexture(0);
 }
 
-void DrawTMXLayerTile(TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, Color tint) {
+void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, Color tint) {
     if (map == NULL || tint.a == 0)
         return;
 
@@ -3000,8 +3000,8 @@ void DrawTMXLayerTile(TmxMap* map, Rectangle screenRect, int32_t rawGid, int pos
     }
 }
 
-void DrawTMXObjectTile(TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, float width, float height,
-        Color tint) {
+void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, float width,
+        float height, Color tint) {
     if (map == NULL || width <= 0 || height <= 0 || tint.a == 0)
         return;
 
@@ -3040,7 +3040,7 @@ void DrawTMXObjectTile(TmxMap* map, Rectangle screenRect, int32_t rawGid, int po
     }
 }
 
-void DrawTMXObjectGroup(TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_OBJECT_GROUP || tint.a == 0)
         return;
 
