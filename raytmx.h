@@ -1821,10 +1821,19 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
             switch (raytmxState->property->type) {
             case PROPERTY_TYPE_STRING:
             default: /* The default type of a property is 'string' */
-                /* The default value for 'string' is an empty string */
                 if (raytmxState->property->stringValue == NULL) {
-                    raytmxState->property->stringValue = (char*)MemAlloc(1);
-                    raytmxState->property->stringValue[0] = '\0';
+                    if (hoxmlContext->content != NULL) { /* If Tiled opted to put the value in the element's content */
+                        /* From the documentation: "When a string property contains newlines, the current version of */
+                        /* Tiled will write out the value as characters contained inside the property element rather */
+                        /* than as the value attribute." */
+                        raytmxState->property->stringValue =
+                            (char*)MemAlloc((unsigned int)strlen(hoxmlContext->content) + 1);
+                        StringCopy(raytmxState->property->stringValue, hoxmlContext->content);
+                    } else { /* If the string's value was neither provided as an attribute nor content */
+                        /* The default value for 'string' is an empty string */
+                        raytmxState->property->stringValue = (char*)MemAlloc(1);
+                        raytmxState->property->stringValue[0] = '\0';
+                    }
                 } break;
             case PROPERTY_TYPE_INT:
             case PROPERTY_TYPE_OBJECT:
