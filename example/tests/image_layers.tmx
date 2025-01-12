@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.11" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="32" height="32" tilewidth="16" tileheight="16" infinite="0" nextlayerid="6" nextobjectid="1">
+ <imagelayer id="5" name="Repeat both" repeatx="1" repeaty="1">
+  <image source="image_layers_repeat_both.png" width="32" height="32"/>
+ </imagelayer>
+ <imagelayer id="4" name="Repeat Y" repeaty="1">
+  <image source="image_layers_repeat_y.png" width="32" height="32"/>
+ </imagelayer>
+ <imagelayer id="3" name="Repeat X" repeatx="1">
+  <image source="image_layers_repeat_x.png" width="32" height="32"/>
+ </imagelayer>
+ <imagelayer id="2" name="No repeat" offsetx="32" offsety="32">
+  <image source="image_layers_no_repeat.png" width="32" height="32"/>
+ </imagelayer>
+</map>

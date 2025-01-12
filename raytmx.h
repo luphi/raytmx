@@ -228,8 +228,8 @@ typedef struct tmx_object_group {
  * Model of an <imagelayer> element when combined with the 'TmxLayer' model. Defines a layer consisting of one image.
  */
 typedef struct tmx_image_layer {
-    bool repeatX; /**< When true, indicates the image is repeated along the X axis. Not currently implemented. */
-    bool repeatY; /**< When true, indicates the image is repeated along the Y axis. Not currently implemented. */
+    bool repeatX; /**< When true, indicates the image is repeated along the X axis. */
+    bool repeatY; /**< When true, indicates the image is repeated along the Y axis. */
     TmxImage image; /**< Sole image of this layer. */
     bool hasImage; /**< When true, indicates 'image' has been set. Should always be true. */
 } TmxImageLayer;
@@ -680,6 +680,7 @@ void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, i
 void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, float width,
     float height, Color tint);
 void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
+void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
 void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* tilesets, uint32_t tilesetsLength,
     int numSpaces);
 void TraceLogTMXProperties(int logLevel, TmxProperty* properties, uint32_t propertiesLength, int numSpaces);
@@ -950,11 +951,9 @@ RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const T
                 posY + layer.offsetY + parallaxOffsetY, layerTint);
             break;
         case LAYER_TYPE_IMAGE_LAYER:
-            if (layer.exact.imageLayer.hasImage) {
-                DrawTexture(/* texture: */ layer.exact.imageLayer.image.texture,
-                    /* posX: */ posX + layer.offsetX + parallaxOffsetX,
-                    /* posY: */ posY + layer.offsetY + parallaxOffsetY, /* tint: */ layerTint);
-            } break;
+            DrawTMXImageLayer(map, screenRect, layer, posX + layer.offsetX + parallaxOffsetX,
+                posY + layer.offsetY + parallaxOffsetY, layerTint);
+        break;
         case LAYER_TYPE_GROUP:
             DrawTMXLayers(map, camera, layer.layers, layer.layersLength, posX + layer.offsetX + parallaxOffsetX,
                 posY + layer.offsetY + parallaxOffsetY, layerTint);
@@ -3127,9 +3126,83 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer,
                     }
                 break;
                 case OBJECT_TYPE_TILE:
-                    /* Object tile's are handled in the 'if' case of this 'else' block because the use of an AABB for */
+                    /* Object tiles are handled in the 'if' case of this 'else' block because the use of an AABB for */
                     /* occlusion culling is not reliable for them */
                 break;
+                }
+            }
+        }
+    }
+}
+
+void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
+    if (map == NULL || layer.type != LAYER_TYPE_IMAGE_LAYER || !layer.exact.imageLayer.hasImage ||
+            layer.exact.imageLayer.image.width == 0 || layer.exact.imageLayer.image.height == 0 || tint.a == 0)
+        return;
+
+    TmxImageLayer imageLayer = layer.exact.imageLayer;
+    /* Determine where the image of this image layer would be drawn, assuming no repetitions */
+    Rectangle imageRect;
+    imageRect.x = (float)posX;
+    imageRect.y = (float)posY;
+    imageRect.width = (float)imageLayer.image.width;
+    imageRect.height = (float)imageLayer.image.height;
+
+    if (!imageLayer.repeatX && !imageLayer.repeatY && CheckCollisionRecs(screenRect, imageRect)) /* If visible */
+        DrawTexture(/* texture: */ imageLayer.image.texture, /* posX: */ posX, /* posY: */ posY, /* tint: */ tint);
+    else if (imageLayer.repeatX || imageLayer.repeatY) { /* If the image might be drawn across a whole axis, or both */
+        /* Use integer division to determine the X and Y positions at which a the image would appear if it were */
+        /* repeated across the whole axis (i.e. if "Repeat X" and/or "Repeat Y" are enabled) */
+        int coefficientX = (int)(screenRect.x - imageRect.x) / (int)imageRect.width;
+        int coefficientY = (int)(screenRect.y - imageRect.y) / (int)imageRect.height;
+        float x0 = imageRect.x + (imageRect.width * (float)coefficientX); /* Initial X position */
+        float y0 = imageRect.y + (imageRect.height * (float)coefficientY); /* Initial Y position */
+
+        if (imageLayer.repeatX) /* If repeating along the X axis */
+            imageRect.x = x0; /* Move the image's representative rectangle to that X */
+        if (imageLayer.repeatY)
+            imageRect.y = y0;
+        if (CheckCollisionRecs(screenRect, imageRect)) { /* If the repeating image would be visible in the screen */
+            /* Take a step back on each axis that the image repeats on. This ensures we don't leave any empty space */
+            /* along the left and/or top edge of the screen. */
+            if (imageLayer.repeatX)
+                x0 -= imageRect.width;
+            if (imageLayer.repeatY)
+                y0 -= imageRect.height;
+
+            /* Create some unchanging objects that the draw function will need */
+            Rectangle sourceRect; /* Region within the texture to be drawn. We'll use the whole texture. */
+            sourceRect.x = 0.0f;
+            sourceRect.y = 0.0f;
+            sourceRect.width = (float)imageLayer.image.width;
+            sourceRect.height = (float)imageLayer.image.height;
+            Vector2 origin; /* Reference point used for rotations. We're not rotation so we'll just use all zeroes. */
+            origin.x = 0.0f;
+            origin.y = 0.0f;
+
+            if (imageLayer.repeatX && imageLayer.repeatY) { /* If repeating on both axes */
+                /* Loop over both the X and Y axes to draw an array of repeated images */
+                for (float x = x0; x <= screenRect.x + screenRect.width; x += imageRect.width) {
+                    for (float y = y0; y <= screenRect.y + screenRect.height; y += imageRect.height) {
+                        imageRect.x = x;
+                        imageRect.y = y;
+                        DrawTexturePro(/* texture: */ imageLayer.image.texture, /* source: */ sourceRect,
+                            /* dest: */ imageRect, /* origin: */ origin, /* rotation: */ 0.0f, /* tint: */ tint);
+                    }
+                }
+            } else if (imageLayer.repeatX) { /* If repeating on just the X axis */
+                /* Loop over just the X axis to draw a horizontal line of repeated images */
+                for (float x = x0; x <= screenRect.x + screenRect.width; x += imageRect.width) {
+                    imageRect.x = x;
+                    DrawTexturePro(/* texture: */ imageLayer.image.texture, /* source: */ sourceRect,
+                        /* dest: */ imageRect, /* origin: */ origin, /* rotation: */ 0.0f, /* tint: */ tint);
+                }
+            } else if (imageLayer.repeatY) { /* If repeating on just the Y axis */
+                /* Loop over just the Y axis to draw a vertical line of repeated images */
+                for (float y = y0; y <= screenRect.y + screenRect.height; y += imageRect.height) {
+                    imageRect.y = y;
+                    DrawTexturePro(/* texture: */ imageLayer.image.texture, /* source: */ sourceRect,
+                        /* dest: */ imageRect, /* origin: */ origin, /* rotation: */ 0.0f, /* tint: */ tint);
                 }
             }
         }
