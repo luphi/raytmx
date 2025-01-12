@@ -31,7 +31,6 @@ Header-only raylib library for loading and drawing Tiled's TMX tilemap documents
 - Text drawing does not support bold, italics, underline, or strikeout styling
 - Concave polygon objects may not be drawn correctly due to drawing with fan triangulation from the centroid
 - Image transparency colors are parsed but their use is not implemented
-- Repetition of image layers is not implemented
 - Nested `<properties>` are not supported; they are merged into a single list of properties
 
 
