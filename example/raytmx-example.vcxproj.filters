@@ -25,30 +25,33 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="fade.png">
+    <Image Include="tilesets\fade.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="grass.png">
+    <Image Include="tilesets\grass.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="ruins.png">
+    <Image Include="tilesets\ruins.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="shadows.png">
+    <Image Include="tilesets\shadows.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="trees.png">
+    <Image Include="tilesets\trees.png">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="raytmx-example.tmx">
+    <None Include="tilesets\shadows.tsx">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="shadows.tsx">
+    <None Include="tilesets\trees.tsx">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="trees.tsx">
+    <None Include="maps\door.tx">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="maps\raytmx-example.tmx">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>

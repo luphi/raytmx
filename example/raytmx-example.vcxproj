@@ -71,8 +71,9 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\luphi\Code\raytmx;C:\Users\luphi\Code\raytmx\external;$(IncludePath)</IncludePath>
+    <IncludePath>D:\Code\raytmx;D:\Code\raytmx\external;$(IncludePath)</IncludePath>
     <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -137,32 +138,17 @@
     <ClInclude Include="..\raytmx.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="fade.png">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="grass.png">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="ruins.png">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="shadows.png">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="trees.png">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
+    <Image Include="tilesets\fade.png" />
+    <Image Include="tilesets\grass.png" />
+    <Image Include="tilesets\ruins.png" />
+    <Image Include="tilesets\shadows.png" />
+    <Image Include="tilesets\trees.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="raytmx-example.tmx">
-      <DeploymentContent>true</DeploymentContent>
-    </None>
-    <None Include="shadows.tsx">
-      <DeploymentContent>true</DeploymentContent>
-    </None>
-    <None Include="trees.tsx">
-      <DeploymentContent>true</DeploymentContent>
-    </None>
+    <None Include="maps\door.tx" />
+    <None Include="maps\raytmx-example.tmx" />
+    <None Include="tilesets\shadows.tsx" />
+    <None Include="tilesets\trees.tsx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

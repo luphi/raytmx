@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2024 Luke Philipsen
+Copyright (c) 2024-2025 Luke Philipsen
 
 Permission to use, copy, modify, and/or distribute this software for
 any purpose with or without fee is hereby granted.
@@ -118,7 +118,7 @@ typedef enum tmx_object_alignment {
  * Identifiers for the possible object types.
  */
 typedef enum tmx_object_type {
-    OBJECT_TYPE_QUAD = 0, /**< Quadliteral, or a rectangle/square. */
+    OBJECT_TYPE_RECTANGLE = 0, /**< Four-sided polygon four right angles and axis-aligned edges. */
     OBJECT_TYPE_ELLIPSE, /**< Ellipse, or a circle when the axes are equal. */
     OBJECT_TYPE_POINT, /**< Individual (X, Y) coordinate with no dimensions. */
     OBJECT_TYPE_POLYGON, /**< Filled polygon formed by an ordered series of points. */
@@ -282,8 +282,8 @@ typedef struct tmx_property {
  * information on how to extract areas from within the image and/or how to align them within an object.
  */
 typedef struct tmx_tileset {
-    int32_t firstGid; /**< First Global ID (GID) of a tile in this tileset. */
-    int32_t lastGid; /**< Last Global ID (GID) of a tile in this tileset. */
+    uint32_t firstGid; /**< First Global ID (GID) of a tile in this tileset. */
+    uint32_t lastGid; /**< Last Global ID (GID) of a tile in this tileset. */
     char* source; /**< (Optional) source of this tileset, may be NULL. Only used for external tilesets. */
     char* name; /**< Name of the tileset. */
     char* classString; /**< (Optional) class of the tileset, may be NULL */
@@ -328,6 +328,7 @@ typedef struct tmx_tileset_tile {
     bool hasAnimation; /**< When true, indicates 'animation' is set. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset tile. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
+    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
 } TmxTilesetTile;
 
 /**
@@ -343,9 +344,9 @@ typedef struct tmx_animation_frame {
  * Contains the information and objects needed to quickly draw a <tile> in a raylib application.
  */
 typedef struct tmx_tile {
-    int32_t gid; /**< Three possible uses: 1) If zero, indicates this tile is unused and the GID mapping to it doesn't
-                      exist within the map, 2) if the tile is an animation, indicates the first GID of the tileset the
-                      animation's frames reference, or 3) just the GID of the tile. */
+    uint32_t gid; /**< Three possible uses: 1) If zero, indicates this tile is unused and the GID mapping to it doesn't
+                       exist within the map, 2) if the tile is an animation, indicates the first GID of the tileset the
+                       animation's frames reference, or 3) just the GID of the tile. */
     Rectangle sourceRect; /**< Sub-rectangle within a tileset to extract that is to be drawn. */
     Texture2D texture; /**< Texture in VRAM to be used to draw. May be used whole or as a source of a sub-rectangle. */
     Vector2 offset; /**< Offset in pixels to be applied to the tile, derived from the tileset. */
@@ -353,6 +354,7 @@ typedef struct tmx_tile {
     bool hasAnimation; /**< When true, indicates 'animation' is set. */
     uint32_t frameIndex; /**< For animations, the current animation frame to draw. */
     float frameTime; /**< For animations, an accumulator. The time, in seconds, the current frame has been drawn. */
+    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
 } TmxTile;
 
 /**
@@ -369,13 +371,13 @@ typedef struct tmx_object {
     double width; /**< Width of the object in pixels. */
     double height; /**< Height of the object in pixels. */
     double rotation; /**< Rotation of the object in (clockwise) degrees around the object's (x, y) position. */
-    int32_t gid; /**< (Semi-optional) Global ID of a tile drawn as the object. If zero, the object is not a tile. */
+    uint32_t gid; /**< (Semi-optional) Global ID of a tile drawn as the object. If zero, the object is not a tile. */
     bool visible; /**< When true, indicates the object will be drawn. */
     char* templateString; /**< (Optional) file name and/or path referencing an object template on disk applied to this
                                 object. If NULL, no template is used. */
-    Vector2* points; /**< (Optional) array of ordered points that define a poly(gon|line). */
+    Vector2* points; /**< (Optional) array of ordered points that define a poly(gon|line). Relative, not absolute. */
     uint32_t pointsLength; /**< Length of the 'points' array. */
-    Vector2* offsetPoints; /**< (Optional) array for optimization reasons. Copied from 'points' with layer offsets. */
+    Vector2* drawPoints; /**< (Optional) array used as a buffer when drawing. Equal in length to the 'points' array. */
     TmxText* text; /**< (Optional) text to be drawn. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this object. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
@@ -497,6 +499,163 @@ RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const T
  * @param map A loaded map model to be animated.
  */
 RAYTMX_DEC void AnimateTMX(TmxMap* map);
+
+/**
+ * Check for collisions between two objects of arbitrary type. Objects that are not primitive shapes, namely text and
+ * tiles, are treated as rectangles.
+ *
+ * @param object1 A TMX <object> to be checked for a collision.
+ * @param object2 Another TMX <object> to be checked for a collision.
+ * @return True if the given objects collide with one another, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2);
+
+/**
+ * Check for collisions between the given tile or group layers and the given rectangle. The tiles must have collision
+ * information created with the Tiled Collision Editor.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param map A loaded map model containing the given layers.
+ * @param layers An array of select tile or group layers to be checked for collisions.
+ * @param layersLength Length of the given array of layers.
+ * @param rec The rectangle to perform collision checks on.
+ * @param outputObject Output parameter assigned with the object the rectangle collided with. NULL if not wanted.
+ * @return True if the given rectangle collides with any tile in the given layers, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXTileLayersRec(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+    Rectangle rec, TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given tile or group layers and the given circle. The tiles must have collision
+ * information created with the Tiled Collision Editor.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param map A loaded map model containing the given layers.
+ * @param layers An array of select tile or group layers to be checked for collisions.
+ * @param layersLength Length of the given array of layers.
+ * @param center The center point of the circle.
+ * @param radius The radius of the circle.
+ * @param outputObject Output parameter assigned with the object the circle collided with. NULL if not wanted.
+ * @return True if the given circle collides with any tile in the given layers, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXTileLayersCircle(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+    Vector2 center, float radius, TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given tile or group layers and the given point. The tiles must have collision
+ * information created with the Tiled Collision Editor.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param map A loaded map model containing the given layers.
+ * @param layers An array of select tile or group layers to be checked for collisions.
+ * @param layersLength Length of the given array of layers.
+ * @param point The point to perform collision checks on.
+ * @param outputObject Output parameter assigned with the object the point collided with. NULL if not wanted.
+ * @return True if the given point collides with any tile in the given layers, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXTileLayersPoint(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+    Vector2 point, TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given tile or group layers and the given polygon. The tiles must have collision
+ * information created with the Tiled Collision Editor.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * This function calculates the Axis-Aligned Bounding Box (AABB) of the polygon each time it's called. If the polygon's
+ * AABB is known, CheckCollisionTMXLayersPolyEx() can be used for better performance.
+ *
+ * @param map A loaded map model containing the given layers.
+ * @param layers An array of select tile or group layers to be checked for collisions.
+ * @param layersLength Length of the given array of layers.
+ * @param points An array of vertices defining the polygon. No repeats.
+ * @param pointCount The length of the array of vertices.
+ * @param outputObject Output parameter assigned with the object the polygon collided with. NULL if not wanted.
+ * @return True if the given polygon collides with any tile in the given layers, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXLayersPoly(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+    Vector2* points, int pointCount, TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given tile or group layers and the given polygon with the given Axis-Aligned
+ * Bounding Box (AABB). The tiles must have collision information created with the Tiled Collision Editor.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ * 
+ * @param map A loaded map model containing the given layers.
+ * @param layers An array of select tile or group layers to be checked for collisions.
+ * @param layersLength Length of the given array of layers.
+ * @param points An array of vertices defining the polygon. No repeats.
+ * @param pointCount The length of the array of vertices.
+ * @param aabb Bounding box of the polygon. Used for quicker, broad collision checks.
+ * @param outputObject Output parameter assigned with the object the polygon collided with. NULL if not wanted.
+ * @return True if the given polygon collides with any tile in the given layers, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXLayersPolyEx(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+    Vector2* points, int pointCount, Rectangle aabb, TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given object group, with 0+ objects of arbitrary shape, and the given rectangle.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param group The object group whose 0+ objects will be checked for collisions.
+ * @param rec The rectangle to perform collision checks on.
+ * @param outputObject Output parameter assigned with the object the rectangle collided with. NULL if not wanted.
+ * @return True if the given rectangle collides with any object in the object group, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupRec(TmxObjectGroup group, Rectangle rec, TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given object group, with 0+ objects of arbitrary shape, and the given circle.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param group The object group whose 0+ objects will be checked for collisions.
+ * @param center The center point of the circle.
+ * @param radius The radius of the circle.
+ * @param outputObject Output parameter assigned with the object the circle collided with. NULL if not wanted.
+ * @return True if the given circle collides with any object in the object group, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupCircle(TmxObjectGroup group, Vector2 center, float radius,
+    TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given object group, with 0+ objects of arbitrary shape, and the given point.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param group The object group whose 0+ objects will be checked for collisions.
+ * @param point The point to perform collision checks on.
+ * @param outputObject Output parameter assigned with the object the point collided with. NULL if not wanted.
+ * @return True if the given point collides with any object in the object group, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupPoint(TmxObjectGroup group, Vector2 point, TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given object group, with 0+ objects of arbitrary shape, and the given polygon.
+ * This function calculates the Axis-Aligned Bounding Box (AABB) of the polygon each time it's called. If the polygon's
+ * AABB is known, CheckCollisionTMXObjectGroupPolyEx() can be used for better performance.
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param group The object group whose 0+ objects will be checked for collisions.
+ * @param points An array of vertices defining the polygon. No repeats.
+ * @param pointCount The length of the array of vertices.
+ * @param outputObject Output parameter assigned with the object the polygon collided with. NULL if not wanted.
+ * @return True if the given polygon collides with any object in the object group, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupPoly(TmxObjectGroup group, Vector2* points, int pointCount,
+    TmxObject* outputObject);
+
+/**
+ * Check for collisions between the given object group, with 0+ objects of arbitrary shape, and the given polygon with
+ * the given Axis-Aligned Bound Box (AABB).
+ * Note: This function assumes the map is positioned at (0, 0). If the map is drawn with an offset, normalize.
+ *
+ * @param group The object group whose 0+ objects will be checked for collisions.
+ * @param points An array of vertices defining the polygon. No repeats.
+ * @param pointCount The length of the array of vertices.
+ * @param aabb Bounding box of the polygon. Used for quicker, broad collision checks.
+ * @param outputObject Output parameter assigned with the object the polygon collided with. NULL if not wanted.
+ * @return True if the given polygon collides with any object in the object group, or false if there is no collision.
+ */
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2* points, int pointCount,
+    Rectangle aabb, TmxObject* outputObject);
 
 /**
  * Log properties of the given map as a formatted string.
@@ -675,16 +834,22 @@ void FreeTileset(TmxTileset tileset);
 void FreeProperty(TmxProperty property);
 void FreeLayer(TmxLayer layer);
 void FreeObject(TmxObject object);
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle screenRect, uint32_t* rawGid,
+    TmxTile* tile, Rectangle* tileRect);
 void DrawTMXTileLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
-void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, Color tint);
-void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, float width,
+void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, Color tint);
+void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, float width,
     float height, Color tint);
 void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
 void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
+bool CheckCollisionTMXTileLayerObject(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+    TmxObject object, TmxObject* outputObject);
+bool CheckCollisionTMXObjectGroupObject(TmxObjectGroup group, TmxObject object, TmxObject* outputObject);
 void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* tilesets, uint32_t tilesetsLength,
     int numSpaces);
 void TraceLogTMXProperties(int logLevel, TmxProperty* properties, uint32_t propertiesLength, int numSpaces);
 void TraceLogTMXLayers(int logLevel, TmxLayer* layers, uint32_t layersLength, int numSpaces);
+void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces);
 void StringCopy(char* destination, const char* source);
 TmxProperty* AddProperty(RaytmxState* raytmxState);
 void AddTileLayerTile(RaytmxState* raytmxState, uint32_t gid);
@@ -697,7 +862,7 @@ void AppendLayerTo(TmxMap* map, RaytmxLayerNode* groupNode, RaytmxLayerNode* lay
 RaytmxCachedTextureNode* LoadCachedTexture(RaytmxState* raytmxState, const char* fileName);
 RaytmxCachedTemplateNode* LoadCachedTemplate(RaytmxState* raytmxState, const char* fileName);
 Color GetColorFromHexString(const char* hex);
-int32_t GetGid(int32_t rawGid, bool* isFlippedHorizontally, bool* isFlippedVertically, bool* isFlippedDiagonally,
+uint32_t GetGid(uint32_t rawGid, bool* isFlippedHorizontally, bool* isFlippedVertically, bool* isFlippedDiagonally,
     bool* isRotatedHexagonal120);
 void* MemAllocZero(unsigned int size);
 char* GetDirectoryPath2(const char* filePath);
@@ -738,7 +903,7 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
     map->parallaxOriginY = raytmxState->mapParallaxOriginY;
     map->hasBackgroundColor = raytmxState->mapHasBackgroundColor;
 
-    int32_t gidsToTilesLength = 0; /* Can also be seen as the last GID */
+    uint32_t gidsToTilesLength = 0; /* Can also be seen as the last GID */
     if (raytmxState->tilesetsRoot != NULL) { /* If there is at least one tileset */
         /* Allocate the array of tilesets and zeroize every index */
         TmxTileset* tilesets = (TmxTileset*)MemAllocZero(sizeof(TmxTileset) * raytmxState->tilesetsLength);
@@ -776,7 +941,7 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
             TmxTileset* tileset = &map->tilesets[i];
             if (tileset->hasImage) { /* If the tileset has a shared image (i.e. not a "collection of images") */
                 for (uint32_t id = 0; id < tileset->tileCount; id++) {
-                    int32_t gid = id + tileset->firstGid, x = id % tileset->columns, y = id/ tileset->columns;
+                    uint32_t gid = id + tileset->firstGid, x = id % tileset->columns, y = id/ tileset->columns;
                     bool hasExplicitSourceRect = false;
                     gidsToTiles[gid].gid = gid;
 
@@ -808,6 +973,11 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
                                 gidsToTiles[gid].sourceRect.width = (float)tilesetTile.width;
                                 gidsToTiles[gid].sourceRect.height = (float)tilesetTile.height;
                             }
+
+                            /* Tiles may have child object groups. These objects are a form of collision information. */
+                            /* The object group may be empty or may have objects. A simple assignment covers both. */
+                            gidsToTiles[gid].objectGroup = tilesetTile.objectGroup;
+
                             break; /* The tile was found - no need to check the rest */
                         }
                     }
@@ -985,6 +1155,207 @@ RAYTMX_DEC void AnimateTMX(TmxMap* map) {
     }
 }
 
+/**
+ * Helper function that creates a TmxObject equivalent to the given rectangle.
+ *
+ * @param rec A rectangle as raylib's Rectangle type.
+ * @return An equivalent TmxObject.
+ */
+TmxObject CreateRectangularTMXObject(Rectangle rec) {
+    TmxObject recAsObject = {0}; /* Zero initialize */
+
+    recAsObject.type = OBJECT_TYPE_RECTANGLE;
+    recAsObject.x = (double)rec.x;
+    recAsObject.y = (double)rec.y;
+    recAsObject.width = (double)rec.width;
+    recAsObject.height = (double)rec.height;
+    recAsObject.aabb = rec;
+
+    return recAsObject;
+}
+
+RAYTMX_DEC bool CheckCollisionTMXTileLayersRec(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+        Rectangle rec, TmxObject* outputObject) {
+    if (map == NULL || layers == NULL || layersLength == 0)
+        return false;
+
+    /* Check the rectangle against objects associated with tiles in the layers for collisions */
+    return CheckCollisionTMXTileLayerObject(map, layers, layersLength, CreateRectangularTMXObject(rec), outputObject);
+}
+
+/**
+ * Helper function that creates a TmxObject equivalent to the given circle.
+ *
+ * @param center The center point of the circle.
+ * @param radius The radius of the circle.
+ * @return An equivalent TmxObject.
+ */
+TmxObject CreateCircularTMXObject(Vector2 center, float radius) {
+    TmxObject circleAsObject = {0}; /* Zero initialize */
+
+    circleAsObject.type = OBJECT_TYPE_ELLIPSE;
+    circleAsObject.x = (double)(center.x - radius);
+    circleAsObject.y = (double)(center.y - radius);
+    circleAsObject.width = 2.0 * (double)radius;
+    circleAsObject.height = 2.0 * (double)radius;
+    circleAsObject.aabb.x = center.x - radius;
+    circleAsObject.aabb.y = center.y - radius;
+    circleAsObject.aabb.width = 2.0f * radius;
+    circleAsObject.aabb.height = 2.0f * radius;
+
+    return circleAsObject;
+}
+
+RAYTMX_DEC bool CheckCollisionTMXTileLayersCircle(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+        Vector2 center, float radius, TmxObject* outputObject) {
+    if (map == NULL || layers == NULL || layersLength == 0)
+        return false;
+
+    /* Check the circle against objects associated with tiles in the layers for collisions */
+    return CheckCollisionTMXTileLayerObject(map, layers, layersLength, CreateCircularTMXObject(center, radius),
+        outputObject);
+}
+
+/**
+ * Helper function that creates a TmxObject equivalent to the given point.
+ *
+ * @param point The point.
+ * @return An equivalent TmxObject.
+ */
+TmxObject CreatePointTMXObject(Vector2 point) {
+    TmxObject pointAsObject = {0}; /* Zero initailize */
+
+    pointAsObject.type = OBJECT_TYPE_POINT;
+    pointAsObject.x = (float)point.x;
+    pointAsObject.y = (float)point.y;
+    pointAsObject.aabb.x = (float)point.x;
+    pointAsObject.aabb.y = (float)point.y;
+
+    return pointAsObject;
+}
+
+RAYTMX_DEC bool CheckCollisionTMXTileLayersPoint(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+        Vector2 point, TmxObject* outputObject) {
+    if (map == NULL || layers == NULL || layersLength == 0)
+        return false;
+
+    /* Check the point against objects associated with tiles in the layers for collisions */
+    return CheckCollisionTMXTileLayerObject(map, layers, layersLength, CreatePointTMXObject(point), outputObject);
+}
+
+/**
+ * Helper function that creates a TmxObject equivalent to the given polygon with the given Axis-Aligned Bounding Box
+ * (AABB). If the AABB should be calculated from the given vertices, pass a rectangle with a zero or negative width or
+ * height.
+ *
+ * @param points An array of vertices defining the polygon. No repeats.
+ * @param pointCount The length of the array of vertices.
+ * @param aabb Bounding box of the polygon. Used for quicker, broad collision checks.
+ * @return An equivalent TmxObject.
+ */
+TmxObject CreatePolygonTMXObject(Vector2* points, int pointCount, Rectangle aabb) {
+    /* Create a polygon TMX object to represent the given polygon */
+    TmxObject polygonAsObject = {0}; /* Zero initialize */
+
+    polygonAsObject.type = OBJECT_TYPE_POLYGON;
+
+    if (aabb.width <= 0.0f || aabb.height <= 0.0f) { /* If the AABB wasn't pre-calculated or is just wrong */
+        /* Calculate the bounding box by searching for minimum and maximum coordinates of the vertices */
+        float minX = INFINITY, maxX = -INFINITY, minY = INFINITY, maxY = -INFINITY;
+        for (int i = 0; i < pointCount; i++) {
+            Vector2 point = points[i];
+            if (point.x < minX)
+                minX = point.x;
+            if (point.x > maxX)
+                maxX = point.x;
+            if (point.y < minY)
+                minY = point.y;
+            if (point.y > maxY)
+                maxY = point.y;
+        }
+        aabb.x = minX;
+        aabb.y = minY;
+        aabb.width = maxX - minX;
+        aabb.height = maxY - minY;
+    }
+
+    /* Polygons' points are relative to the object's position. Because this function takes points with absolute */
+    /* positions, we'll account for this by making the object's position zero. */
+    polygonAsObject.x = 0.0;
+    polygonAsObject.y = 0.0;
+    polygonAsObject.width = (double)aabb.width;
+    polygonAsObject.height = (double)aabb.height;
+    polygonAsObject.aabb = aabb;
+    polygonAsObject.points = points;
+    polygonAsObject.pointsLength = pointCount;
+
+    return polygonAsObject;
+}
+
+RAYTMX_DEC bool CheckCollisionTMXLayersPoly(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+        Vector2* points, int pointCount, TmxObject* outputObject) {
+    if (map == NULL || layers == NULL || layersLength == 0 || points == NULL || pointCount < 3)
+        return false;
+
+    /* Check the polygon against objects associated with tiles in the layers for collisions */
+    return CheckCollisionTMXTileLayerObject(map, layers, layersLength,
+        CreatePolygonTMXObject(points, pointCount, (Rectangle){0.0f}), outputObject);
+}
+
+RAYTMX_DEC bool CheckCollisionTMXLayersPolyEx(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+        Vector2* points, int pointCount, Rectangle aabb, TmxObject* outputObject) {
+    if (map == NULL || layers == NULL || layersLength == 0 || points == NULL || pointCount < 3)
+        return false;
+
+    /* Check the polygon against objects associated with tiles in the layers for collisions */
+    return CheckCollisionTMXTileLayerObject(map, layers, layersLength,
+        CreatePolygonTMXObject(points, pointCount, aabb), outputObject);
+}
+
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupRec(TmxObjectGroup group, Rectangle rec, TmxObject* outputObject) {
+    if (group.objectsLength == 0 || rec.width < 0.0f || rec.height < 0.0f)
+        return false; /* Early-out opportunity. These cases would always return false. */
+
+    /* Check the rectangle against TMX objects in the group for collisions */
+    return CheckCollisionTMXObjectGroupObject(group, CreateRectangularTMXObject(rec), outputObject);
+}
+
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupCircle(TmxObjectGroup group, Vector2 center, float radius,
+        TmxObject* outputObject) {
+    if (group.objectsLength == 0 || radius < 0.0f)
+        return false; /* Early-out opportunity. These cases would always return false. */
+
+    /* Check the circle against TMX objects in the group for collisions */
+    return CheckCollisionTMXObjectGroupObject(group, CreateCircularTMXObject(center, radius), outputObject);
+}
+
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupPoint(TmxObjectGroup group, Vector2 point, TmxObject* outputObject) {
+    if (group.objectsLength == 0)
+        return false; /* Early-out opportunity. This case would always return false. */
+
+    /* Check the point against TMX objects in the group for collisions */
+    return CheckCollisionTMXObjectGroupObject(group, CreatePointTMXObject(point), outputObject);
+}
+
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupPoly(TmxObjectGroup group, Vector2* points, int pointCount,
+        TmxObject* outputObject) {
+    if (group.objectsLength == 0 || points == NULL || pointCount < 3)
+        return false; /* Early-out opportunity. These cases would always return false. */
+
+    /* Check the polygon TMX object against other TMX objects in the group for collisions */
+    return CheckCollisionTMXObjectGroupObject(group, CreatePolygonTMXObject(points, pointCount, (Rectangle){0.0f}),
+        outputObject);
+}
+
+RAYTMX_DEC bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2* points, int pointCount,
+        Rectangle aabb, TmxObject* outputObject) {
+    if (group.objectsLength == 0 || points == NULL || pointCount < 3)
+        return false; /* Early-out opportunity. These cases would always return false. */
+
+    /* Check the polygon TMX object against other TMX objects in the group for collisions */
+    return CheckCollisionTMXObjectGroupObject(group, CreatePolygonTMXObject(points, pointCount, aabb), outputObject);
+}
+
 static int tmxLogFlags = 0;
 
 RAYTMX_DEC void TraceLogTMX(int logLevel, const TmxMap* map) {
@@ -1092,7 +1463,7 @@ RaytmxObjectTemplate LoadTX(const char* fileName) {
         TraceLog(LOG_WARNING, "RAYTMX: TX file (object template) \"%s\" does not contain any objects", fileName);
 
     if (raytmxState->tilesetsRoot != NULL) { /* If there is at least one tileset */
-        /* Object templates may have a tileset. This is for cases where the object references a tile (i.e. it's 'gid' */
+        /* Object templates may have a tileset. This is for cases where the object references a tile (i.e. its 'gid' */
         /* attribute is set).  Copy the root tileset so it can be returned */
         objectTemplate.tileset = raytmxState->tilesetsRoot->tileset;
         objectTemplate.hasTileset = true;
@@ -1236,10 +1607,15 @@ void HandleElementBegin(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext)
         raytmxState->layer->type = LAYER_TYPE_TILE_LAYER;
         raytmxState->tileLayer = &raytmxState->layer->exact.tileLayer;
     } else if (strcmp(hoxmlContext->tag, "objectgroup") == 0) {
-        /* Allocate a new layer with 'objectGroup' allocated and append it to the current group, if it exists */
-        raytmxState->layer = AddGenericLayer(raytmxState, /* isGroup: */ false);
-        raytmxState->layer->type = LAYER_TYPE_OBJECT_GROUP;
-        raytmxState->objectGroup = &raytmxState->layer->exact.objectGroup;
+        if (raytmxState->tilesetTile != NULL) { /* If the object group is a child of a <tile>, it's collision info */
+            raytmxState->objectGroup = &raytmxState->tilesetTile->objectGroup;
+            /* Child objects (rectangles, points, ellipses, or polygons) are expected to follow */
+        } else {
+            /* Allocate a new layer with 'objectGroup' allocated and append it to the current group, if it exists */
+            raytmxState->layer = AddGenericLayer(raytmxState, /* isGroup: */ false);
+            raytmxState->layer->type = LAYER_TYPE_OBJECT_GROUP;
+            raytmxState->objectGroup = &raytmxState->layer->exact.objectGroup;
+        }
     } else if (strcmp(hoxmlContext->tag, "object") == 0) {
         /* <object> elements are typically only allowable as children of <objectgroup>s but object templates, TX */
         /* files, contain them as children of root <template> */
@@ -1259,12 +1635,12 @@ void HandleElementBegin(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext)
         }
     } else if (strcmp(hoxmlContext->tag, "polygon") == 0) {
         if (raytmxState->object != NULL) {
-            /* Note: <polygon>s and <polyline>s have a list of points/vertexes defined in a 'points' attribute */
+            /* Note: <polygon>s and <polyline>s have a list of points/vertices defined in a 'points' attribute */
             raytmxState->object->type = OBJECT_TYPE_POLYGON;
         }
     } else if (strcmp(hoxmlContext->tag, "polyline") == 0) {
         if (raytmxState->object != NULL) {
-            /* Note: <polyline>s and <polygone>s have a list of points/vertexes defined in a 'points' attribute */
+            /* Note: <polyline>s and <polygone>s have a list of points/vertices defined in a 'points' attribute */
             raytmxState->object->type = OBJECT_TYPE_POLYLINE;
         }
     } else if (strcmp(hoxmlContext->tag, "text") == 0) {
@@ -1378,7 +1754,7 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     /* A <tileset> within a <map> will have two attributes: 'firstgid' and 'source.' The rest of */
                     /* the tileset's details are in the external TSX that 'source' points to. They need to be merged. */
                     /* Remember the two internal attributes. */
-                    int32_t tempFirstGid = raytmxState->tileset->firstGid;
+                    uint32_t tempFirstGid = raytmxState->tileset->firstGid;
                     char* tempSource = raytmxState->tileset->source;
                     /* Assign all values from the TSX's tileset to the one within the state object. This will */
                     /* overrite the values of 'firstGid' and 'source.' */
@@ -1571,7 +1947,7 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
             iterator = hoxmlContext->value;
             RaytmxPolyPointNode *pointsRoot = NULL, *pointsTail = NULL;
             uint32_t pointsLength = 0;
-            Vector2 vertexSum; /* Specific to polygons, the centroid is calculated requiring a sum of all vertexes */
+            Vector2 vertexSum; /* Specific to polygons, the centroid is calculated requiring a sum of all vertices */
             vertexSum.x = 0;
             vertexSum.y = 0;
             while (iterator != NULL) {
@@ -1596,8 +1972,10 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                 y[terminator - iterator] = '\0';
                 /* Create a linked list node to hold the point and append it to the linked list */
                 RaytmxPolyPointNode* node = (RaytmxPolyPointNode*)MemAllocZero(sizeof(RaytmxPolyPointNode));
-                node->point.x = (float)(raytmxState->object->x + atof(x));
-                node->point.y = (float)(raytmxState->object->y + atof(y));
+                /* Note: These values may be negative. A poly(gon|line) object's position is determined by the first */
+                /* vertex added leading to the first entry to be "0,0" and all other vertices relative to it. */
+                node->point.x = (float)atof(x);
+                node->point.y = (float)atof(y);
                 vertexSum.x += node->point.x;
                 vertexSum.y += node->point.y;
                 if (pointsRoot == NULL) /* If this is the first point to add to the list */
@@ -1622,8 +2000,8 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                 }
                 /* Allocate the array and assign NULL to every index to be safe */
                 Vector2* points = (Vector2*)MemAllocZero(sizeof(Vector2) * pointsLength);
-                if (isPolygon) { /* If the centroid should be appended first */
-                    /* Finish calculating the centroid by averaging the sum of the vertexes keeping in mind that */
+                if (isPolygon) { /* If the centroid should be included as a vertex */
+                    /* Finish calculating the centroid by averaging the sum of the vertices keeping in mind that */
                     /* 'pointsLength' is equal to N + 2 */
                     points[0].x = vertexSum.x / (pointsLength - 2);
                     points[0].y = vertexSum.y / (pointsLength - 2);
@@ -1639,13 +2017,13 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     MemFree(parent);
                 }
                 /* End the list with the first point. Both polygons and polylines use this when drawing. */
-                points[pointsLength - 1].x = points[1].x;
-                points[pointsLength - 1].y = points[1].y;
+                points[pointsLength - 1].x = points[isPolygon ? 1 : 0].x;
+                points[pointsLength - 1].y = points[isPolygon ? 1 : 0].y;
+                /* TODO: sort the vertices into counter-clockwise order as DrawTriangleFan() requires it */
                 /* Add the points array to the element it applies to */
                 raytmxState->object->points = points;
                 raytmxState->object->pointsLength = pointsLength;
-                raytmxState->object->offsetPoints = (Vector2*)MemAllocZero(sizeof(Vector2) * pointsLength);
-                memcpy(raytmxState->object->offsetPoints, points, sizeof(Vector2) * pointsLength);
+                raytmxState->object->drawPoints = (Vector2*)MemAllocZero(sizeof(Vector2) * pointsLength);
             }
         } /* raytmxState->object != NULL && strcmp(hoxmlContext->attribute, "points") == 0 */
     } /* strcmp(hoxmlContext->tag, "polygon") == 0 || strcmp(hoxmlContext->tag, "polyline") == 0 */
@@ -2316,7 +2694,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
             /* possibility of 'width' and 'height' being derived from a template, these must be calculated after a */
             /* template is applied to the object. */
             switch (raytmxState->object->type) {
-            case OBJECT_TYPE_QUAD:
+            case OBJECT_TYPE_RECTANGLE:
             case OBJECT_TYPE_ELLIPSE:
             case OBJECT_TYPE_TEXT:
                 raytmxState->object->aabb.x = (float)raytmxState->object->x;
@@ -2347,8 +2725,10 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     if (point.y > maxY)
                         maxY = point.y;
                 }
-                raytmxState->object->aabb.x = minX;
-                raytmxState->object->aabb.y = minY;
+                /* Note: Poly(gon|line) objects' vertices are stored with relative positions whereas AABBs use */
+                /* absolute values. The object's X and Y values must be added. */
+                raytmxState->object->aabb.x = minX + (float)raytmxState->object->x;
+                raytmxState->object->aabb.y = minY + (float)raytmxState->object->y;
                 raytmxState->object->aabb.width = maxX - minX;
                 raytmxState->object->aabb.height = maxY - minY;
             }
@@ -2812,54 +3192,154 @@ void FreeObject(TmxObject object) {
     } /* object.text != NULL */
 }
 
+#define SIGN(x) (x < 0 ? -1 : +1)
+
+/**
+ * Helper function that keeps an integer within the given range.
+ * Note: A function named Clamp() exists in raylib but uses floats, hence Clampi().
+ * 
+ * @param value The preferred value that will be used as long as it is between the minimum and maximum values.
+ * @param minimum The smallest acceptable value, inclusive.
+ * @param maximum The largest acceptable value, inclusive.
+ * @return The preferred value if within the range or the nearest acceptable value.
+ */
+int Clampi(int value, int minimum, int maximum) {
+    if (value < minimum)
+        return minimum;
+    else if (value > maximum)
+        return maximum;
+    return value;
+}
+
+/**
+ * Scary-looking helper function that does something kind of simple: iterates through the tiles of the given tile layer
+ * overlapping with the given screen rectangle, one tile per call. This function returns true while iteration is still
+ * ongoing and false when done. This allows the function to be used e.g. "while (IterateTileLayer( { ...} ))". Details
+ * of the current tile are returned to the caller with output parameters. Iteration is done row-by-row.
+ *
+ * @param map A loaded map model containing the given tile layer.
+ * @param layer The tile layer within the given map whose tiles will be iterated.
+ * @param screenRect A rectangle representing the screen. This could also be considered a search area.
+ * @param rawGid Optional output. The Global ID (GID) with possible flip flags. Pass NULL if not wanted.
+ * @param tile Optional output. Metadata of the current tile. Pass NULL if not wanted.
+ * @param tileRect Optional output. The destination rectangle, in pixels, of the current tile. Pass NULL if not wanted.
+ * @return True if the next tile is being provided via the output parameters, or false if iteration is done.
+ */
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle screenRect, uint32_t* rawGid,
+        TmxTile* tile, Rectangle* tileRect) {
+    /* Static variables whose values will persist between calls. These are needed to initialize and iterate. */
+    static const TmxTileLayer* currentLayer = NULL; /* Tile layer being iterated */
+    static int fromX = 0; /* Initial X position, tile not pixel, that row-by-row iteration begins at */
+    static int fromY = 0; /* Initial Y position, tile not pixel, that row-by-row iteration begins at */
+    static int toX = 0; /* Final X position, tile not pixel, that iteration ends at */
+    static int toY = 0; /* Final Y position, tile not pixel, that iteration ends at */
+    static int currentX = 0; /* Current tile X position (column) within the iteration */
+    static int currentY = 0; /* Current tile Y position (row) within the iteration */
+
+    if (map == NULL || map->width == 0 || map->height == 0 || map->tileWidth == 0 || map->tileHeight == 0 ||
+            layer == NULL || layer->tilesLength == 0)
+        return false;
+
+    if (currentLayer != layer) { /* If the layer has changed (i.e. iteration should initialize) */
+        currentLayer = layer; /* Remember this layer */
+        switch (map->renderOrder) {
+        case RENDER_ORDER_RIGHT_DOWN:
+            /* Start at the top-left, iterate right, then iterate down, ending at the bottom-right. */
+            /* In other words, this is the order in which English is read. */
+            fromX = (int)screenRect.x / (int)map->tileWidth;
+            fromY = (int)screenRect.y / (int)map->tileHeight;
+            toX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
+            toY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
+        break;
+        case RENDER_ORDER_RIGHT_UP:
+            /* Start at the bottom-left, iterate right, then iterate up, ending at the top-right */
+            fromX = (int)screenRect.x / (int)map->tileWidth;
+            fromY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
+            toX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
+            toY = (int)screenRect.y / (int)map->tileHeight;
+        break;
+        case RENDER_ORDER_LEFT_DOWN:
+            /* Start at the top-right, iterate left, then iterate down, ending at the bottom-left */
+            fromX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
+            fromY = (int)screenRect.y / (int)map->tileHeight;
+            toX = (int)screenRect.x / (int)map->tileWidth;
+            toY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
+        break;
+        case RENDER_ORDER_LEFT_UP:
+            /* Start at the bottom-right, iterate left, then iterate up, ending at the top-left */
+            fromX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
+            fromY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
+            toX = (int)screenRect.x / (int)map->tileWidth;
+            toY = (int)screenRect.y / (int)map->tileHeight;
+        break;
+        } /* switch (map->renderOrder) */
+        /* Restrain the the tile positions to those within the map in case of rounding mistakes */
+        fromX = Clampi(fromX, 0, (int)map->width - 1);
+        fromY = Clampi(fromY, 0, (int)map->height - 1);
+        toX = Clampi(toX, 0, (int)map->width - 1);
+        toY = Clampi(toY, 0, (int)map->height - 1);
+        /* Begin iteration from both "from" tile positions */
+        currentX = fromX;
+        currentY = fromY;
+    } else if (currentX == toX) { /* If the end of the current row was reached */
+        /* Rendering is done row-by-row. This row is done so move to the next one. */
+        currentX = fromX;
+        currentY += SIGN(toY - fromY); /* Either +1 or -1 */
+    } else { /* If still iterating through the current row */
+        /* Move to the right or left by one tile */
+        currentX += SIGN(toX - fromX); /* Either +1 or -1 */
+    }
+
+    if (currentY > toY) { /* If iteration has gone beyond the final row */
+        /* This is the termination condition. Zero all values and return false so the caller exits its loop. */
+        currentLayer = NULL;
+        fromX = fromY = toX = toY = currentX = currentY = 0;
+        return false;
+    }
+
+    /* Calculate the index in the tile layer from knowing the tile's X and Y position (in tiles, not pixels) */
+    int index = (currentY * (int)map->width) + currentX;
+    if (index < 0 || index >= (int)layer->tilesLength) { /* Bounds check */
+        currentLayer = NULL;
+        fromX = fromY = toX = toY = currentX = currentY = 0;
+        return false;
+    }
+
+    /* Get the raw Global ID (GID) of the tile at this position from the layer's list of tiles. This list's order */
+    /* matches the map's render order. */
+    uint32_t localRawGid = layer->tiles[index];
+    if (rawGid != NULL)
+        *rawGid = localRawGid; /* Assign the value to he output parameter */
+    if (tile != NULL) {
+        /* The raw GID may have bit flags on it. They need to be removed in order to get the actual GID value.*/
+        uint32_t gid = GetGid(localRawGid, NULL, NULL, NULL, NULL);
+        /* Get the tile's metadata from knowing its GID */
+        *tile = map->gidsToTiles[gid];
+    }
+    if (tileRect != NULL) {
+        /* Calculate the tile's destination rectangle, in pixels */
+        *tileRect = (Rectangle) {
+            .x = (float)((uint32_t)currentX * map->tileWidth),
+            .y = (float)((uint32_t)currentY * map->tileHeight),
+            .width = (float)map->tileWidth,
+            .height = (float)map->tileHeight
+        };
+    }
+
+    return true;
+}
+
 void DrawTMXTileLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_TILE_LAYER || layer.exact.tileLayer.tilesLength == 0)
         return;
 
-    TmxTileLayer tileLayer = layer.exact.tileLayer;
-    switch (map->renderOrder) {
-    case RENDER_ORDER_RIGHT_DOWN:
-        for (int32_t y = 0; y < (int32_t)map->height; y++) {
-            for (int32_t x = 0; x < (int32_t)map->width; x++) {
-                /* Note: Layers have a one-dimensional list of GIDs. The order they're in implies their coordinates. */
-                /* The GIDs are stored in right-down order meaning index zero is the top-left tile, index <map width> */
-                /* is the top-right tile, and <length - 1> is the bottom-right tile. So, the index in that list can */
-                /* be calculated from X and Y: (<Y> * <map width>) + <X>. */
-                /* Note: 'x' and 'y' use tiles as units, not pixels. The (pixel) X position is straightforward: */
-                /* <X> * <tile width>. The (pixel) Y position is similarly simple: <Y> * <tile height>. */
-                DrawTMXLayerTile(/* map: */ map,
-                                 /* screenRect: */ screenRect,
-                                 /* rawGid: */ tileLayer.tiles[(y * map->width) + x],
-                                 /* posX: */ posX + (x * map->tileWidth),
-                                 /* posY: */ posY + (y * map->tileHeight),
-                                 /* tint: */ tint);
-            }
-        }
-    break;
-    case RENDER_ORDER_RIGHT_UP:
-        for (int32_t y = (int32_t)map->height - 1; y >= 0; y--) {
-            for (int32_t x = 0; x < (int32_t)map->width; x++) {
-                DrawTMXLayerTile(map, screenRect, tileLayer.tiles[(y * map->width) + x], posX + (x * map->tileWidth),
-                    posY + (y * map->tileHeight), tint);
-            }
-        }
-    break;
-    case RENDER_ORDER_LEFT_DOWN:
-        for (int32_t y = 0; y < (int32_t)map->height; y++) {
-            for (int32_t x = (int32_t)map->width - 1; x >= 0; x--) {
-                DrawTMXLayerTile(map, screenRect, tileLayer.tiles[(y * map->width) + x], posX + (x * map->tileWidth),
-                    posY + (y * map->tileHeight), tint);
-            }
-        }
-    break;
-    case RENDER_ORDER_LEFT_UP:
-        for (int32_t y = (int32_t)map->height - 1; y >= 0; y--) {
-            for (int32_t x = (int32_t)map->width - 1; x >= 0; x--) {
-                DrawTMXLayerTile(map, screenRect, tileLayer.tiles[(y * map->width) + x], posX + (x * map->tileWidth),
-                    posY + (y * map->tileHeight), tint);
-            }
-        }
-    break;
+    /* Iterate through each tile that the screen rectangle overlaps with */
+    uint32_t rawGid;
+    Rectangle tileRect;
+    while (IterateTileLayer(/* map: */ map, /* layer: */ &layer.exact.tileLayer, /* screenRect: */ screenRect,
+            /* rawGid: */ &rawGid, /* tile: */ NULL, /* tileRect: */ &tileRect)) {
+        DrawTMXLayerTile(/* map: */ map, /* screenRect: */ screenRect, /* rawGid: */ rawGid,
+                         /* posX: */ posX + (int)tileRect.x, /* posY: */ posY + (int)tileRect.y, /* tint: */ tint);
     }
 }
 
@@ -2960,20 +3440,20 @@ void DrawTextureTile(Texture2D texture, Rectangle source, Rectangle dest, bool f
     rlSetTexture(0);
 }
 
-void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, Color tint) {
+void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, Color tint) {
     if (map == NULL || tint.a == 0)
         return;
 
     bool isFlippedHorizontally, isFlippedVertically, isFlippedDiagonally, isRotatedHexagonal120;
     /* Tile Global IDs (GIDs) can have several bit flags that indicate transforms. This function is used to both get */
     /* those possible transform flags as well as the actual GID value without those bit flags. */
-    int32_t gid = GetGid(rawGid, &isFlippedHorizontally, &isFlippedVertically, &isFlippedDiagonally,
+    uint32_t gid = GetGid(rawGid, &isFlippedHorizontally, &isFlippedVertically, &isFlippedDiagonally,
         &isRotatedHexagonal120);
-    if (gid >= (int32_t)map->gidsToTilesLength) /* If the GID is outside the range of known GIDs */
+    if (gid >= map->gidsToTilesLength) /* If the GID is outside the range of known GIDs */
         return; /* Do not attempt to draw this time */
     /* With the GID, grab the relevant tile information (texture, animation, etc.) from the global mapping */
     TmxTile tile = map->gidsToTiles[gid];
-    if (tile.gid <= 0) /* If the GID is not known to exist in any tilesets within the map */
+    if (tile.gid == 0) /* If the GID is not known to exist in any tilesets within the map */
         return; /* Do not attempt to draw this tile */
 
     if (tile.hasAnimation) {
@@ -3008,7 +3488,7 @@ void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, i
     }
 }
 
-void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, int posX, int posY, float width,
+void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, float width,
         float height, Color tint) {
     if (map == NULL || width <= 0 || height <= 0 || tint.a == 0)
         return;
@@ -3016,13 +3496,13 @@ void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, int32_t rawGid, 
     bool isFlippedHorizontally, isFlippedVertically, isFlippedDiagonally, isRotatedHexagonal120;
     /* Tile Global IDs (GIDs) can have several bit flags that indicate transforms. This function is used to both get */
     /* those possible transform flags as well as the actual GID value without those bit flags. */
-    int32_t gid = GetGid(rawGid, &isFlippedHorizontally, &isFlippedVertically, &isFlippedDiagonally,
+    uint32_t gid = GetGid(rawGid, &isFlippedHorizontally, &isFlippedVertically, &isFlippedDiagonally,
         &isRotatedHexagonal120);
     if (gid >= (int32_t)map->gidsToTilesLength) /* If the GID is outside the range of known GIDs */
         return; /* Do not attempt to draw this time */
     /* With the GID, grab the relevant tile information (texture, animation, etc.) from the global mapping */
     TmxTile tile = map->gidsToTiles[gid];
-    if (tile.gid <= 0) /* If the GID is not known to exist in any tilesets within the map */
+    if (tile.gid == 0) /* If the GID is not known to exist in any tilesets within the map */
         return; /* Do not attempt to draw this time */
 
     if (tile.hasAnimation) {
@@ -3073,7 +3553,7 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer,
             /* If the screen rectangle and the polygon's AABB are overlapping to any degree (i.e. it is visible) */
             if (CheckCollisionRecs(screenRect, offsetAabb)) {
                 switch (object.type) {
-                case OBJECT_TYPE_QUAD:
+                case OBJECT_TYPE_RECTANGLE:
                     DrawRectangle(/* posX: */ posX + (int)object.x, /* posY: */ posY + (int)object.y,
                         /* width: */ (int)object.width, /* height: */ (int)object.height,
                         /* color: */ objectGroup.color);
@@ -3093,24 +3573,26 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer,
                 break;
                 case OBJECT_TYPE_POLYGON:
                 case OBJECT_TYPE_POLYLINE:
-                    /* Copy the 'points' array to the 'offsetPoints' array and apply the drawing position, an offset */
-                    /* applied by the layer and/or draw call. The 'offsetPoints' array was allocated at the same time */
-                    /* as 'points' with the same size. This is done to improve draw speeds, or to minimize harm. */
-                    memcpy(object.points, object.offsetPoints, object.pointsLength);
+                    /* Copy the 'points' array to the 'drawPoints' array and apply the drawing position, an offset */
+                    /* applied by the layer and/or draw call. The 'drawPoints' array was allocated at the same time */
+                    /* as 'points' with the same size. This improves draw call times by reducing memory allocations. */
+                    memcpy(object.drawPoints, object.points, sizeof(Vector2) * object.pointsLength);
                     for (uint32_t i = 0; i < object.pointsLength; i++) {
-                        object.offsetPoints[i].x += posX;
-                        object.offsetPoints[i].y += posY;
+                        /* Polygons' and polyglines' vertices are stored with relative positions. To get the absolute */
+                        /* position needed for drawing, just add the object's position and offset. */
+                        object.drawPoints[i].x += (float)object.x + (float)posX;
+                        object.drawPoints[i].y += (float)object.y + (float)posY;
                     }
                     /* Use the offset points to draw the poly(gon|line) */
                     if (object.type == OBJECT_TYPE_POLYGON) {
                         /* Note: Polygons' first elements are their centroids. DrawTriangleFan() requires this. */
-                        /* Additionally, the last element in 'points' is a duplicate of the first, non-centroid point. */
-                        DrawTriangleFan(/* points: */ object.points, /* pointCount: */ object.pointsLength,
+                        /* And, the last element in 'drawPoints' is a duplicate of the first, non-centroid point. */
+                        DrawTriangleFan(/* points: */ object.drawPoints, /* pointCount: */ object.pointsLength,
                             /* color: */ objectGroup.color);
                     } else /* if (object.type == OBJECT_TYPE_POLYLINE) */ {
-                        /* Note: The last element in 'points' is a duplicate of the first point */
+                        /* Note: The last element in 'drawPoints' is a duplicate of the first point */
                         for (uint32_t i = 1; i < object.pointsLength; i++) {
-                            DrawLineEx(/* startPos: */ object.points[i - 1], /* endPos: */ object.points[i],
+                            DrawLineEx(/* startPos: */ object.drawPoints[i - 1], /* endPos: */ object.drawPoints[i],
                                 /* thick: */ TMX_LINE_THICKNESS, /* color: */ objectGroup.color);
                         }
                     }
@@ -3176,7 +3658,7 @@ void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, 
             sourceRect.y = 0.0f;
             sourceRect.width = (float)imageLayer.image.width;
             sourceRect.height = (float)imageLayer.image.height;
-            Vector2 origin; /* Reference point used for rotations. We're not rotation so we'll just use all zeroes. */
+            Vector2 origin; /* Reference point used for rotations. We're not rotating so we'll just use all zeroes. */
             origin.x = 0.0f;
             origin.y = 0.0f;
 
@@ -3209,6 +3691,274 @@ void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, 
     }
 }
 
+/**
+ * Helper function for detecting collisions between a line and a polygon given the line's start and end points and an
+ * array and count of the polygon's vertices.
+ * 
+ * @param startPos One of the two points forming the line.
+ * @param endPos The other point forming the line.
+ * @param polyPos Position, in pixels, of the polygon. Its points are relative to this position.
+ * @param points Array of vertices of the polygon.
+ * @param pointCount Number of verticies in the polygon and, therefore, length of the array of vertices.
+ * @return True if the line and polygon collide with one another, or false if there is no collision.
+ */
+bool CheckCollisionLinePoly(Vector2 startPos, Vector2 endPos, Vector2 polyPos, Vector2* points, int pointCount) {
+    if (pointCount < 3)
+        return false;
+
+    /* Cycle through each edge of the polygon */
+    int nextIndex = 0;
+    for (int currentIndex = 0; currentIndex < pointCount; currentIndex++) {
+        /* Get the next index. If the current index is the last, wrap around. */
+        nextIndex = currentIndex + 1;
+        if (nextIndex == pointCount)
+            nextIndex = 0;
+        /* Get the current and next points. These two points form an edge of the polygon. */
+        Vector2 currentPoint = points[currentIndex];
+        Vector2 nextPoint = points[nextIndex];
+        /* Check these edges for collisions. Note: The last parameter is unused, hence zero. */
+        if (CheckCollisionLines(/* startPos1: */ startPos, /* endPos1: */ endPos, /* startPos2: */ currentPoint,
+                /* endPos: */ nextPoint, /* collisionPoint: */ NULL))
+            return true;
+    }
+
+    return false;
+}
+
+/**
+ * Helper function for detecting collisions between two polygons given arrays and counts of their vertices.
+ *
+ * @param polyPos1 Position, in pixels, of the first polygon. Its points are relative to this position.
+ * @param points1 Array of vertices of the first polygon.
+ * @param pointCount1 Number of vertices in the first polygon and, therefore, length of the array of vertices.
+ * @param polyPos2 Position, in pixels, of the second polygon. Its points are relative to this position.
+ * @param points2 Array of vertices of the second polygon.
+ * @param pointCount2 Number of vertices in the second polygon and, therefore, length of the array of vertices.
+ * @return True if the given polygons collide with one another, or false if there is no collision.
+ */
+bool CheckCollisionPolyPoly(Vector2 polyPos1, Vector2* points1, int pointCount1, Vector2 polyPos2, Vector2* points2,
+        int pointCount2) {
+    /* If either vertex array is missing or does not contain enough vertices to define a polygon */
+    if (points1 == NULL || pointCount1 < 3 || points2 == NULL || pointCount2 < 3)
+        return false;
+
+    /* Cycle through each edge of polygon 1 */
+    int nextIndex = 0;
+    for (int currentIndex = 0; currentIndex < pointCount1; currentIndex++) {
+        /* Get the next index. If the current index is the last, wrap around. */
+        nextIndex = currentIndex + 1;
+        if (nextIndex == pointCount1)
+            nextIndex = 0;
+        /* Get the current and next points. These two points form an edge of polygon 1. */
+        Vector2 currentPoint = points1[currentIndex];
+        currentPoint.x += polyPos1.x;
+        currentPoint.y += polyPos1.y;
+        Vector2 nextPoint = points1[nextIndex];
+        nextPoint.x += polyPos1.x;
+        nextPoint.y += polyPos1.y;
+        /* Check this edge for collisions against edges of polygon 2 */
+        if (CheckCollisionLinePoly(currentPoint, nextPoint, polyPos2, points2, pointCount2))
+            return true;
+    }
+
+    /* Check if polygon 1 is fully inside polygon 2 */
+    if (CheckCollisionPointPoly(/* point: */ points1[0], /* points: */ points2, /* pointCount: */ pointCount2))
+        return true;
+
+    /* Check if polygon 2 is fully inside polygon 1 */
+    if (CheckCollisionPointPoly(/* point: */ points2[0], /* points: */ points1, /* pointCount: */ pointCount1))
+        return true;
+
+    return false;
+}
+
+RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2) {
+    /* Perform a quick collision check on the Axis-Aligned Bounding Boxes (AABB) before more accurate checks */
+    if (!CheckCollisionRecs(/* rec1: */ object1.aabb, /* rec2: */ object2.aabb))
+        return false; /* The AABBs do not collide so the objects cannot possibly collide */
+
+    switch (object1.type) {
+    case OBJECT_TYPE_RECTANGLE: /* Object 1's type */
+    case OBJECT_TYPE_ELLIPSE: /* Object 1's type (treated as a rectangle due to difficulty) */
+    case OBJECT_TYPE_TEXT: /* Object 1's type */
+    case OBJECT_TYPE_TILE: /* Object 1's type */
+        switch (object2.type) {
+        case OBJECT_TYPE_RECTANGLE: /* Object 2's type */
+        case OBJECT_TYPE_ELLIPSE: /* Object 2's type (treated as a rectangle due to difficulty) */
+        case OBJECT_TYPE_TEXT: /* Object 2's type */
+        case OBJECT_TYPE_TILE: /* Object 2's type */
+            /* The objects' shapes, as far as collisions are concerned, are identical to the AABB. We already */
+            /* determined the AABBs collide so these objects collide. */
+            return true;
+
+        case OBJECT_TYPE_POINT: /* Object 2's type */
+            return CheckCollisionPointRec(/* point: */ (Vector2){(float)object2.x, (float)object2.y},
+                /* rec: */ object1.aabb);
+
+        case OBJECT_TYPE_POLYGON: /* Object 2's type */
+        case OBJECT_TYPE_POLYLINE: /* Object 2's type */
+        {
+            /* A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind polygon */
+            /* vertices are relative so the top-left corner is always (0, 0). */
+            Vector2 points[4];
+            points[0] = (Vector2){0.0f, 0.0f};
+            points[1] = (Vector2){(float)object1.width, 0.0f};
+            points[2] = (Vector2){(float)object1.width, (float)object1.height};
+            points[3] = (Vector2){0.0f, (float)object1.height};
+            return CheckCollisionPolyPoly(/* polyPos1: */ (Vector2){(float)object1.x, (float)object1.y},
+                /* points1: */ points, /* pointCount: */ 4,
+                /* polyPos2: */ (Vector2){(float)object2.x, (float)object2.y}, /* points2: */ object2.points,
+                /* pointCount2: */ object2.pointsLength);
+        }
+        }
+    break;
+
+    case OBJECT_TYPE_POINT: /* Object 1's type */
+        switch (object2.type) {
+        case OBJECT_TYPE_RECTANGLE: /* Object 2's type */
+        case OBJECT_TYPE_ELLIPSE: /* Object 2's type (treated as a rectangle due to difficulty) */
+        case OBJECT_TYPE_TEXT: /* Object 2's type */
+        case OBJECT_TYPE_TILE: /* Object 2's type */
+            return CheckCollisionPointRec(/* point: */ (Vector2){(float)object1.x, (float)object2.y},
+                /* rec: */ object2.aabb);
+
+        case OBJECT_TYPE_POINT: /* Object 2's type */
+            return object1.x == object2.x && object1.y == object2.y;
+
+        case OBJECT_TYPE_POLYGON: /* Object 2's type */
+        case OBJECT_TYPE_POLYLINE: /* Object 2's type */
+            return CheckCollisionPointPoly((Vector2){(float)object1.x, (float)object1.y}, object2.points,
+                object2.pointsLength);
+        }
+    break;
+
+    case OBJECT_TYPE_POLYGON: /* Object 1's type */
+    case OBJECT_TYPE_POLYLINE: /* Object 1's type */
+        switch (object2.type) {
+        case OBJECT_TYPE_RECTANGLE: /* Object 2's type */
+        case OBJECT_TYPE_ELLIPSE: /* Object 2's type (treated as a rectangle due to difficulty) */
+        case OBJECT_TYPE_TEXT: /* Object 2's type */
+        case OBJECT_TYPE_TILE: /* Object 2's type */
+        {
+            /* A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind polygon */
+            /* vertices are relative so the top-left corner is always (0, 0). */
+            Vector2 points[4];
+            points[0] = (Vector2){0.0f, 0.0f};
+            points[1] = (Vector2){(float)object2.width, 0.0f};
+            points[2] = (Vector2){(float)object2.width, (float)object2.height};
+            points[3] = (Vector2){0.0f, (float)object2.height};
+            return CheckCollisionPolyPoly(/* polyPos1: */ (Vector2){(float)object1.x, (float)object1.y},
+                /* points1: */ object1.points, /* pointCount1: */ object1.pointsLength,
+                /* polyPos2: */ (Vector2){(float)object2.x, (float)object2.y}, /* points2: */ points,
+                /* pointCount2: */ 4);
+        }
+
+        case OBJECT_TYPE_POINT: /* Object 2's type */
+            return CheckCollisionPointPoly(/* point: */ (Vector2){(float)object2.x, (float)object2.y},
+                /* points: */ object1.points, /* pointCount: */ object1.pointsLength);
+
+        case OBJECT_TYPE_POLYGON: /* Object 2's type */
+        case OBJECT_TYPE_POLYLINE: /* Object 2's type */
+            return CheckCollisionPolyPoly(/* polyPos1: */ (Vector2){(float)object1.x, (float)object1.y},
+                /* points1: */ object1.points, /* pointCount1: */ object1.pointsLength,
+                /* polyPos2: */ (Vector2){(float)object2.x, (float)object2.y}, /* points2: */ object2.points,
+                /* pointCount2: */ object2.pointsLength);
+        }
+    break;
+    }
+
+    return false;
+}
+
+/**
+ * Helper function for applying a translation to a given object by the given deltas.
+ *
+ * @param object The object whose position(s) should be translated.
+ * @param dx The X delta, in pixels, to translate.
+ * @param dy The Y delta, in pixels, to translate.
+ * @return A translated copy of the given object.
+ */
+TmxObject TranslateObject(TmxObject object, float dx, float dy) {
+    /* Translate the position of the object by the different X and Y deltas */
+    object.x += (double)dx;
+    object.y += (double)dy;
+    /* Translate the Axis-Aligned Bounding Boxes (AABBs) to match */
+    object.aabb.x += dx;
+    object.aabb.y += dy;
+    /* Note: Although polygons and polylines have a series of vertices, they are relative to the object. This means */
+    /* nothing more needs to be done. Translating the object's X and Y effectively translates each vertex. Plus, the */
+    /* points array is a heap allocation so doing a += on the points modifies them globally. That's bad. */
+    return object;
+}
+
+/**
+ * Helper function for checking for collisions between 1+ tile layers, or groups potentially containing 1+ tile layers,
+ * and an object of arbitrary type. These checks use the collision information associated with tiles as object groups.
+ *
+ * @param map A loaded map model containing the given layers.
+ * @param layers An array of select tile layers or group layers to be checked for collisions.
+ * @param layersLength Length of the given array of tile layers.
+ * @param object A TMX <object> to be checked for a collision.
+ * @param outputObject Output parameter assigned with the object in the tile layer that the given object collided with.
+ *                     NULL if not wanted.
+ * @return True if one of the given tile layers collides with the given object, or false if there is no collision.
+ */
+bool CheckCollisionTMXTileLayerObject(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
+        TmxObject object, TmxObject* outputObject) {
+    if (map == NULL || layers == NULL || layersLength == 0)
+        return false;
+
+    /* Iterate through each layer and check their tiles for collisions with the given object */
+    for (uint32_t i = 0; i < layersLength; i++) {
+        if (layers[i].type == LAYER_TYPE_TILE_LAYER) { /* If the layer has tiles */
+            /* Iterate through each tile that the object's Axis-Aligned Bounding Box (AABB) overlaps with */
+            TmxTile tile;
+            Rectangle tileRect;
+            while (IterateTileLayer(/* map: */ map, /* layer: */ &layers[i].exact.tileLayer,
+                    /* screenRect: */ object.aabb, /* rawGid: */ NULL, /* tile: */ &tile, /* tileRect: */ &tileRect)) {
+                /* Iterate through each object associated with the tile */
+                for (uint32_t j = 0; j < tile.objectGroup.objectsLength; j++) {
+                    /* This object, the tile's collision information, has a relative position so this object must be */
+                    /* translated to the position of the tile as it would be drawn with the layer */
+                    TmxObject positionedObject = TranslateObject(tile.objectGroup.objects[j], tileRect.x, tileRect.y);
+                    /* If this tile's object collides with the given object */
+                    if (CheckCollisionTMXObjects(positionedObject, object)) {
+                        if (outputObject != NULL)
+                            *outputObject = positionedObject;
+                        return true; /* Found a collision. Exit now to save some CPU cycles. */
+                    }
+                }
+            }
+        } else if (layers[i].type == LAYER_TYPE_GROUP) { /* If the layer contains other layers */
+            if (CheckCollisionTMXTileLayerObject(map, layers[i].layers, layers[i].layersLength, object, outputObject))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Helper function for checking for collisions between an object group and an object of arbitrary type.
+ *
+ * @param group The object group whose 0+ objects will be checked for collisions.
+ * @param object A TMX <object> to be checked for collision.
+ * @param outputObject Output parameter assigned with the object in the object group that the given object collided
+ *                     with. NULL if not wanted.
+ * @return True if an object in the object group collides with the given object, or false if there is no collision.
+ */
+bool CheckCollisionTMXObjectGroupObject(TmxObjectGroup group, TmxObject object, TmxObject* outputObject) {
+    for (size_t i = 0; i < group.objectsLength; i++) {
+        if (CheckCollisionTMXObjects(group.objects[i], object)) {
+            if (outputObject != NULL)
+                *outputObject = group.objects[i];
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* tilesets, uint32_t tilesetsLength,
         int numSpaces) {
     for (uint32_t i = 0; i < tilesetsLength; i++) {
@@ -3216,8 +3966,8 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* t
         if (i == 0)
             TraceLog(logLevel, "tilesets:");
         TraceLog(logLevel, "  \"%s\":", tileset.name);
-        TraceLog(logLevel, "    first GID: %d", tileset.firstGid);
-        TraceLog(logLevel, "    last GID: %d", tileset.lastGid);
+        TraceLog(logLevel, "    first GID: %u", tileset.firstGid);
+        TraceLog(logLevel, "    last GID: %u", tileset.lastGid);
         if (tileset.source != NULL)
             TraceLog(logLevel, "    source: \"%s\"", tileset.source);
         if (tileset.classString[0] != '\0')
@@ -3293,6 +4043,15 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* t
                 if (tile.image.height != 0)
                     TraceLog(logLevel, "        height: %u", tile.image.height);
                 TraceLog(logLevel, "        texture (ID): %u", tile.image.texture.id);
+            }
+            if (tile.objectGroup.objectsLength > 0) {
+                if (tmxLogFlags & LOG_SKIP_OBJECTS)
+                    TraceLog(logLevel, "      skipping %u objects", tile.objectGroup.objectsLength);
+                else {
+                    TraceLog(logLevel, "      objects:");
+                    for (uint32_t k = 0; k < tile.objectGroup.objectsLength; k++)
+                        TraceLogTMXObject(logLevel, tile.objectGroup.objects[k], numSpaces + 2);
+                }
             }
         }
         TraceLogTMXProperties(logLevel, tileset.properties, tileset.propertiesLength, 2);
@@ -3397,7 +4156,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer* layers, uint32_t layersLength, in
                     for (uint32_t j = 0; j < layer.exact.tileLayer.tilesLength; j++) {
                         if (j == 0)
                             TraceLog(logLevel, "%s    tiles:", padding);
-                        TraceLog(logLevel, "%s      GID: %d", padding, layer.exact.tileLayer.tiles[j]);
+                        TraceLog(logLevel, "%s      GID: %u", padding, layer.exact.tileLayer.tiles[j]);
                     }
                 }
                 break;
@@ -3429,85 +4188,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer* layers, uint32_t layersLength, in
                         TmxObject object = layer.exact.objectGroup.objects[j];
                         if (j == 0)
                             TraceLog(logLevel, "%s    objects:", padding);
-                        TraceLog(logLevel, "%s      ID: %u", padding, object.id);
-                        TraceLog(logLevel, "%s        name: \"%s\"", padding, object.name);
-                        switch (object.type) {
-                        case OBJECT_TYPE_QUAD: TraceLog(logLevel, "%s        type: quad", padding); break;
-                        case OBJECT_TYPE_ELLIPSE: TraceLog(logLevel, "%s        type: ellipse", padding); break;
-                        case OBJECT_TYPE_POINT: TraceLog(logLevel, "%s        type: point", padding); break;
-                        case OBJECT_TYPE_POLYGON: TraceLog(logLevel, "%s        type: polygon", padding); break;
-                        case OBJECT_TYPE_POLYLINE: TraceLog(logLevel, "%s        type: polyline", padding); break;
-                        case OBJECT_TYPE_TEXT: TraceLog(logLevel, "%s        type: text", padding); break;
-                        case OBJECT_TYPE_TILE: TraceLog(logLevel, "%s        type: tile", padding); break;
-                        }
-                        if (object.typeString[0] != '\0')
-                            TraceLog(logLevel, "%s        type: \"%s\"", padding, object.typeString);
-                        if (object.x != 0.0)
-                            TraceLog(logLevel, "%s        x: %f", padding, object.x);
-                        if (object.y != 0.0)
-                            TraceLog(logLevel, "%s        y: %f", padding, object.y);
-                        if (object.width != 0.0)
-                            TraceLog(logLevel, "%s        width: %f", padding, object.width);
-                        if (object.height != 0.0)
-                            TraceLog(logLevel, "%s        height: %f", padding, object.height);
-                        if (object.rotation != 0.0)
-                            TraceLog(logLevel, "%s        rotation: %f", padding, object.rotation);
-                        if (object.gid >= 0)
-                            TraceLog(logLevel, "%s        GID: %d", padding, object.gid);
-                        if (!object.visible)
-                            TraceLog(logLevel, "%s        visible: false", padding);
-                        if (object.templateString != NULL)
-                            TraceLog(logLevel, "%s        template: \"%s\"", padding, object.templateString);
-                        for (uint32_t k = 0; k < object.pointsLength; k++) {
-                            if (k == 0)
-                                TraceLog(logLevel, "%s        points:", padding);
-                            TraceLog(logLevel, "%s          [%f, %f]", padding, object.points[k].x, object.points[k].y);
-                        }
-                        TraceLogTMXProperties(logLevel, object.properties, object.propertiesLength, numSpaces + 8);
-                        if (object.text != NULL) {
-                            TraceLog(logLevel, "%s        font family: \"%s\"", padding, object.text->fontFamily);
-                            TraceLog(logLevel, "%s        pixel size: %u", padding, object.text->pixelSize);
-                            if (object.text->wrap)
-                                TraceLog(logLevel, "%s        wrap: true", padding);
-                            TraceLog(logLevel, "%s        color: 0x%08X", padding, object.text->color);
-                            if (object.text->bold)
-                                TraceLog(logLevel, "%s        bold: true", padding);
-                            if (object.text->italic)
-                                TraceLog(logLevel, "%s        italic: true", padding);
-                            if (object.text->underline)
-                                TraceLog(logLevel, "%s        underline: true", padding);
-                            if (object.text->strikeOut)
-                                TraceLog(logLevel, "%s        strike out: true", padding);
-                            if (object.text->kerning)
-                                TraceLog(logLevel, "%s        kerning: true", padding);
-                            switch (object.text->halign) {
-                            case HORIZONTAL_ALIGNMENT_LEFT:
-                                TraceLog(logLevel, "%s        horizontal align: left", padding);
-                                break;
-                            case HORIZONTAL_ALIGNMENT_CENTER:
-                                TraceLog(logLevel, "%s        horizontal align: center", padding);
-                                break;
-                            case HORIZONTAL_ALIGNMENT_RIGHT:
-                                TraceLog(logLevel, "%s        horizontal align: right", padding);
-                                break;
-                            case HORIZONTAL_ALIGNMENT_JUSTIFY:
-                                TraceLog(logLevel, "%s        horizontal align: justify", padding);
-                                break;
-                            }
-                            switch (object.text->valign) {
-                            case VERTICAL_ALIGNMENT_TOP:
-                                TraceLog(logLevel, "%s        vertical align: top", padding);
-                                break;
-                            case VERTICAL_ALIGNMENT_CENTER:
-                                TraceLog(logLevel, "%s        vertical align: center", padding);
-                                break;
-                            case VERTICAL_ALIGNMENT_BOTTOM:
-                                TraceLog(logLevel, "%s        vertical align: bottom", padding);
-                                break;
-                            }
-                            if (object.text->content[0] != '\0')
-                                TraceLog(logLevel, "%s        content: \"%s\"", padding, object.text->content);
-                        }
+                        TraceLogTMXObject(logLevel, object, numSpaces);
                     }
                 }
                 break;
@@ -3542,6 +4223,92 @@ void TraceLogTMXLayers(int logLevel, TmxLayer* layers, uint32_t layersLength, in
             TraceLog(logLevel, "%s  skipped %u object layers", padding, numObjectGroups);
         if (tmxLogFlags & LOG_SKIP_IMAGE_LAYERS && numImageLayers > 0)
             TraceLog(logLevel, "%s  skipped %u image layers", padding, numImageLayers);
+    }
+}
+
+void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces) {
+    char padding[16];
+    memset(padding, '\0', 16);
+    StringCopyN(padding, "                ", numSpaces);
+
+    TraceLog(logLevel, "%s      ID: %u", padding, object.id);
+    TraceLog(logLevel, "%s        name: \"%s\"", padding, object.name);
+    switch (object.type) {
+    case OBJECT_TYPE_RECTANGLE: TraceLog(logLevel, "%s        type: quad", padding); break;
+    case OBJECT_TYPE_ELLIPSE: TraceLog(logLevel, "%s        type: ellipse", padding); break;
+    case OBJECT_TYPE_POINT: TraceLog(logLevel, "%s        type: point", padding); break;
+    case OBJECT_TYPE_POLYGON: TraceLog(logLevel, "%s        type: polygon", padding); break;
+    case OBJECT_TYPE_POLYLINE: TraceLog(logLevel, "%s        type: polyline", padding); break;
+    case OBJECT_TYPE_TEXT: TraceLog(logLevel, "%s        type: text", padding); break;
+    case OBJECT_TYPE_TILE: TraceLog(logLevel, "%s        type: tile", padding); break;
+    }
+    if (object.typeString[0] != '\0')
+        TraceLog(logLevel, "%s        type: \"%s\"", padding, object.typeString);
+    if (object.x != 0.0)
+        TraceLog(logLevel, "%s        x: %f", padding, object.x);
+    if (object.y != 0.0)
+        TraceLog(logLevel, "%s        y: %f", padding, object.y);
+    if (object.width != 0.0)
+        TraceLog(logLevel, "%s        width: %f", padding, object.width);
+    if (object.height != 0.0)
+        TraceLog(logLevel, "%s        height: %f", padding, object.height);
+    if (object.rotation != 0.0)
+        TraceLog(logLevel, "%s        rotation: %f", padding, object.rotation);
+    if (object.gid > 0)
+        TraceLog(logLevel, "%s        GID: %u", padding, object.gid);
+    if (!object.visible)
+        TraceLog(logLevel, "%s        visible: false", padding);
+    if (object.templateString != NULL)
+        TraceLog(logLevel, "%s        template: \"%s\"", padding, object.templateString);
+    for (uint32_t k = 0; k < object.pointsLength; k++) {
+        if (k == 0)
+            TraceLog(logLevel, "%s        points:", padding);
+        TraceLog(logLevel, "%s          [%f, %f]", padding, object.points[k].x, object.points[k].y);
+    }
+    TraceLogTMXProperties(logLevel, object.properties, object.propertiesLength, numSpaces + 8);
+    if (object.text != NULL) {
+        TraceLog(logLevel, "%s        font family: \"%s\"", padding, object.text->fontFamily);
+        TraceLog(logLevel, "%s        pixel size: %u", padding, object.text->pixelSize);
+        if (object.text->wrap)
+            TraceLog(logLevel, "%s        wrap: true", padding);
+        TraceLog(logLevel, "%s        color: 0x%08X", padding, object.text->color);
+        if (object.text->bold)
+            TraceLog(logLevel, "%s        bold: true", padding);
+        if (object.text->italic)
+            TraceLog(logLevel, "%s        italic: true", padding);
+        if (object.text->underline)
+            TraceLog(logLevel, "%s        underline: true", padding);
+        if (object.text->strikeOut)
+            TraceLog(logLevel, "%s        strike out: true", padding);
+        if (object.text->kerning)
+            TraceLog(logLevel, "%s        kerning: true", padding);
+        switch (object.text->halign) {
+        case HORIZONTAL_ALIGNMENT_LEFT:
+            TraceLog(logLevel, "%s        horizontal align: left", padding);
+            break;
+        case HORIZONTAL_ALIGNMENT_CENTER:
+            TraceLog(logLevel, "%s        horizontal align: center", padding);
+            break;
+        case HORIZONTAL_ALIGNMENT_RIGHT:
+            TraceLog(logLevel, "%s        horizontal align: right", padding);
+            break;
+        case HORIZONTAL_ALIGNMENT_JUSTIFY:
+            TraceLog(logLevel, "%s        horizontal align: justify", padding);
+            break;
+        }
+        switch (object.text->valign) {
+        case VERTICAL_ALIGNMENT_TOP:
+            TraceLog(logLevel, "%s        vertical align: top", padding);
+            break;
+        case VERTICAL_ALIGNMENT_CENTER:
+            TraceLog(logLevel, "%s        vertical align: center", padding);
+            break;
+        case VERTICAL_ALIGNMENT_BOTTOM:
+            TraceLog(logLevel, "%s        vertical align: bottom", padding);
+            break;
+        }
+        if (object.text->content[0] != '\0')
+            TraceLog(logLevel, "%s        content: \"%s\"", padding, object.text->content);
     }
 }
 
@@ -3642,8 +4409,7 @@ TmxLayer* AddGenericLayer(RaytmxState* raytmxState, bool isGroup) {
 
 TmxObject* AddObject(RaytmxState* raytmxState) {
     RaytmxObjectNode* node = (RaytmxObjectNode*)MemAllocZero(sizeof(RaytmxObjectNode));
-    /* <object> elements have a couple non-zero default values: */
-    node->object.gid = -1;
+    /* <object> elements have one non-zero default value: */
     node->object.visible = true;
 
     if (raytmxState->objectsRoot == NULL)
@@ -3815,16 +4581,19 @@ Color GetColorFromHexString(const char* hex) {
     return color;
 }
 
-int32_t GetGid(int32_t rawGid, bool* isFlippedHorizontally, bool* isFlippedVertically, bool* isFlippedDiagonally,
+uint32_t GetGid(uint32_t rawGid, bool* isFlippedHorizontally, bool* isFlippedVertically, bool* isFlippedDiagonally,
         bool* isRotatedHexagonal120) {
-    if (isFlippedHorizontally == NULL || isFlippedVertically == NULL || isFlippedDiagonally == NULL ||
-            isRotatedHexagonal120 == NULL)
-        return rawGid & ~(FLIP_FLAG_HORIZONTAL | FLIP_FLAG_VERTICAL | FLIP_FLAG_DIAGONAL | FLIP_FLAG_ROTATE_120);
+    /* If the output parameters can be written to, output the status of the flip flags */
+    if (isFlippedHorizontally != NULL)
+        *isFlippedHorizontally = rawGid & FLIP_FLAG_HORIZONTAL;
+    if (isFlippedVertically != NULL)
+        *isFlippedVertically = rawGid & FLIP_FLAG_VERTICAL;
+    if (isFlippedDiagonally != NULL)
+        *isFlippedDiagonally = rawGid & FLIP_FLAG_DIAGONAL;
+    if (isRotatedHexagonal120 != NULL)
+        *isRotatedHexagonal120 = rawGid & FLIP_FLAG_ROTATE_120;
 
-    *isFlippedHorizontally = rawGid & FLIP_FLAG_HORIZONTAL;
-    *isFlippedVertically = rawGid & FLIP_FLAG_VERTICAL;
-    *isFlippedDiagonally = rawGid & FLIP_FLAG_DIAGONAL;
-    *isRotatedHexagonal120 = rawGid & FLIP_FLAG_ROTATE_120;
+    /* Return the integer with flip flags removed */
     return rawGid & ~(FLIP_FLAG_HORIZONTAL | FLIP_FLAG_VERTICAL | FLIP_FLAG_DIAGONAL | FLIP_FLAG_ROTATE_120);
 }
 
