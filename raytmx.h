@@ -1162,7 +1162,8 @@ RAYTMX_DEC void AnimateTMX(TmxMap* map) {
  * @return An equivalent TmxObject.
  */
 TmxObject CreateRectangularTMXObject(Rectangle rec) {
-    TmxObject recAsObject = {0}; /* Zero initialize */
+    TmxObject recAsObject;
+    memset(&recAsObject, 0, sizeof(TmxObject)); /* Zero initialize */
 
     recAsObject.type = OBJECT_TYPE_RECTANGLE;
     recAsObject.x = (double)rec.x;
@@ -1191,7 +1192,8 @@ RAYTMX_DEC bool CheckCollisionTMXTileLayersRec(const TmxMap* map, const TmxLayer
  * @return An equivalent TmxObject.
  */
 TmxObject CreateCircularTMXObject(Vector2 center, float radius) {
-    TmxObject circleAsObject = {0}; /* Zero initialize */
+    TmxObject circleAsObject;
+    memset(&circleAsObject, 0, sizeof(TmxObject)); /* Zero initialize */
 
     circleAsObject.type = OBJECT_TYPE_ELLIPSE;
     circleAsObject.x = (double)(center.x - radius);
@@ -1223,7 +1225,8 @@ RAYTMX_DEC bool CheckCollisionTMXTileLayersCircle(const TmxMap* map, const TmxLa
  * @return An equivalent TmxObject.
  */
 TmxObject CreatePointTMXObject(Vector2 point) {
-    TmxObject pointAsObject = {0}; /* Zero initailize */
+    TmxObject pointAsObject;
+    memset(&pointAsObject, 0, sizeof(TmxObject)); /* Zero initialize */
 
     pointAsObject.type = OBJECT_TYPE_POINT;
     pointAsObject.x = (float)point.x;
@@ -1255,7 +1258,8 @@ RAYTMX_DEC bool CheckCollisionTMXTileLayersPoint(const TmxMap* map, const TmxLay
  */
 TmxObject CreatePolygonTMXObject(Vector2* points, int pointCount, Rectangle aabb) {
     /* Create a polygon TMX object to represent the given polygon */
-    TmxObject polygonAsObject = {0}; /* Zero initialize */
+    TmxObject polygonAsObject;
+    memset(&polygonAsObject, 0, sizeof(TmxObject)); /* Zero initialize */
 
     polygonAsObject.type = OBJECT_TYPE_POLYGON;
 
