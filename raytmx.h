@@ -3498,7 +3498,7 @@ void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid,
     /* those possible transform flags as well as the actual GID value without those bit flags. */
     uint32_t gid = GetGid(rawGid, &isFlippedHorizontally, &isFlippedVertically, &isFlippedDiagonally,
         &isRotatedHexagonal120);
-    if (gid >= (int32_t)map->gidsToTilesLength) /* If the GID is outside the range of known GIDs */
+    if (gid >= map->gidsToTilesLength) /* If the GID is outside the range of known GIDs */
         return; /* Do not attempt to draw this time */
     /* With the GID, grab the relevant tile information (texture, animation, etc.) from the global mapping */
     TmxTile tile = map->gidsToTiles[gid];
