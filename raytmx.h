@@ -3294,7 +3294,8 @@ bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle sc
         currentX += SIGN(toX - fromX); /* Either +1 or -1 */
     }
 
-    if (currentY > toY) { /* If iteration has gone beyond the final row */
+    /* If iteration has gone beyond the final row */
+    if ((toY - fromY > 0 && currentY > toY) || (toY - fromY < 0 && currentY < toY)) {
         /* This is the termination condition. Zero all values and return false so the caller exits its loop. */
         currentLayer = NULL;
         fromX = fromY = toX = toY = currentX = currentY = 0;
