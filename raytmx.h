@@ -52,6 +52,11 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 /* Definitions */
 
 /**
+ * Function signature of raylib's LoadTexture() as a type. For use with SetLoadTextureTMX().
+ */
+typedef Texture2D (*LoadTextureCallback)(const char* fileName);
+
+/**
  * Bit flags passed to SetTraceLogFlagsTMX() that optionally disable the logging of specific TMX elements.
  */
 enum tmx_log_flags {
@@ -656,6 +661,15 @@ RAYTMX_DEC bool CheckCollisionTMXObjectGroupPoly(TmxObjectGroup group, Vector2* 
  */
 RAYTMX_DEC bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2* points, int pointCount,
     Rectangle aabb, TmxObject* outputObject);
+
+/**
+ * Set a custom callback in place of raylib's LoadTexture(). The callback must return a Texture2D and take a const char*
+ * as the sole parameter. To unset, pass NULL to this function.
+ *
+ * @param callback A function pointer with a "Texture2D CustLoadTexture(const char* fileName)" signature, or NULL if
+ *                 unsetting the custom callback.
+ */
+RAYTMX_DEC void SetLoadTextureTMX(LoadTextureCallback callback);
 
 /**
  * Log properties of the given map as a formatted string.
@@ -1358,6 +1372,12 @@ RAYTMX_DEC bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2
 
     /* Check the polygon TMX object against other TMX objects in the group for collisions */
     return CheckCollisionTMXObjectGroupObject(group, CreatePolygonTMXObject(points, pointCount, aabb), outputObject);
+}
+
+static LoadTextureCallback loadTextureOverride = NULL;
+
+RAYTMX_DEC void SetLoadTextureTMX(LoadTextureCallback callback) {
+    loadTextureOverride = callback;
 }
 
 static int tmxLogFlags = 0;
@@ -4470,7 +4490,7 @@ RaytmxCachedTextureNode* LoadCachedTexture(RaytmxState* raytmxState, const char*
 
     /* Try to load the texture */
     char* fullPath = JoinPath(raytmxState->documentDirectory, fileName);
-    Texture2D texture = LoadTexture(fullPath);
+    Texture2D texture = loadTextureOverride ? loadTextureOverride(fullPath) : LoadTexture(fullPath);
     if (texture.id == 0) { /* If loading the texture failed */
         TraceLog(LOG_ERROR, "RAYTMX: Unable to load texture \"%s\"", fullPath);
         return NULL;
