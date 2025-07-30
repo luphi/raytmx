@@ -2008,7 +2008,7 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     pointsTail->next = node;
                 pointsTail = node;
                 pointsLength += 1;
-                iterator = *terminator != '\0' ? terminator + 1 : NULL;
+                iterator = terminator[0] != '\0' ? terminator + 1 : NULL;
             }
 
             if (pointsRoot != NULL) { /* If a list with at least one node was created from the 'points' attribute */
@@ -2505,7 +2505,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     memset(valueAsString, '\0', 16); /* Reset the value-as-a-string buffer with all zeroes */
                     /* Copy each character into the buffer until either a comma or the terminator is reached */
                     for (int i = 0; *iterator != ',' && *iterator != '\0'; i++) {
-                        valueAsString[i] = *iterator;
+                        memcpy(valueAsString + i, iterator, 1);
                         iterator++;
                     }
                     if (*iterator == ',') /* If iteration was paused by a comma */
@@ -4588,13 +4588,16 @@ Color GetColorFromHexString(const char* hex) {
 
     /* Hex strings are in the form #AARRGGBB or #RRGGBB meaning alpha is optional. To avoid any special logic for the */
     /* two cases where alpha is or isn't given, parsing will just be done backwards. Here, 'hex' is used as an */
-    /* iterator so it will begin at the end of the string. */
+    /* iterator so it will begin at the end of the string. For example, for "#789abc" this begins at 'c'. */
     hex += length - 1;
 
     char component[] = "\0\0\0"; /* Used to hold the two-digit component (e.g. "55" or "ff") */
     for (size_t i = 0; i < length / 2; i++) { /* Iterate three or four times with four meaning alpha was included */
-        component[1] = *hex--; /* Store the char value 'hex' points to then point to the previous char */
-        component[0] = *hex--; /* With this, 'component' will be something like { 'f', 'f', '\0' } */
+        component[1] = hex[0]; /* Store the char 'hex' points to. For "#789abc" this is 'c', 'a', or '8'. */
+        hex--; /* Point to the previous char in the string. For "#789abc" this now points to 'b', '9' or '7'. */
+        component[0] = hex[0]; /* Store the other char of the current component */
+        hex--; /* Iterate backwards again in preparation for the next component */
+        /* For "#789abc" the 'component' array is now "bc", "9a", or "78" */
         switch (i) {
         case 0: color.b = (unsigned char)strtoul(component, NULL, 16); break; /* e.g. "ff" -> 255 for blue */
         case 1: color.g = (unsigned char)strtoul(component, NULL, 16); break; /* ...for green */
