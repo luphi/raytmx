@@ -172,23 +172,6 @@ typedef enum tmx_render_order {
     RENDER_ORDER_LEFT_UP /**< Tiles are rendered by row, from right to left, then column, from bottom to top. */
 } TmxRenderOrder;
 
-/* Forward declarations of TMX types */
-typedef struct tmx_image TmxImage;
-typedef struct tmx_tile_layer TmxTileLayer;
-typedef struct tmx_object_group TmxObjectGroup;
-typedef struct tmx_image_layer TmxImageLayer;
-typedef struct tmx_layer TmxLayer;
-typedef struct tmx_property TmxProperty;
-typedef struct tmx_tileset TmxTileset;
-typedef struct tmx_animation TmxAnimation;
-typedef struct tmx_tileset_tile TmxTilesetTile;
-typedef struct tmx_animation_frame TmxAnimationFrame;
-typedef struct tmx_tile TmxTile;
-typedef struct tmx_object TmxObject;
-typedef struct tmx_text TmxText;
-typedef struct tmx_text_line TmxTextLine;
-typedef struct tmx_map TmxMap;
-
 /**
  * Model of an <image> element. Defines an image and relevant attributes along with a loaded texture.
  */
@@ -215,59 +198,34 @@ typedef struct tmx_tile_layer {
 } TmxTileLayer;
 
 /**
- * Model of an <objectgroup> element when combined with the 'TmxLayer' model. Defines an object layer of an arbitrary
- * number of objects of varying types.
+ * Contains the information needed to quickly draw a single line of a <text> element.
  */
-typedef struct tmx_object_group {
-    /* uint32_t width; */ /**< Width of the object layer in tiles. TMX documentation describes it as "meaningless." */
-    /* uint32_t height; */ /**< Height of the object layer in tiles. TMX documentation describes it as "meaningless." */
-    Color color; /**< (Optional) color used to display objects within the layer. */
-    bool hasColor; /**< When true, indicates 'color' has been set. */
-    TmxObjectGroupDrawOrder drawOrder; /**< Indicates the order in which objects in this layer are drawn. */
-    TmxObject* objects; /**< Array of objects contained by this object layer. */
-    uint32_t objectsLength; /**< Length of the 'objects' array. */
-    uint32_t* ySortedObjects; /**< Array of indexes of 'objects' sorted by the objects' y-coordinates. */
-} TmxObjectGroup;
+typedef struct tmx_text_line {
+    char* content; /**< The string to be drawn. This may be the whole content of the parent string or partial. */
+    Font font; /**< The raylib Font to be used when drawing. */
+    Vector2 position; /**< Absolute position of this line. This is separate from its object layer's potential offset. */
+    float spacing; /**< Spacing in pixels to be applied between each character when drawing. */
+} TmxTextLine;
 
 /**
- * Model of an <imagelayer> element when combined with the 'TmxLayer' model. Defines a layer consisting of one image.
+ * Model of a <text> element along with some pre-calculated objects for efficient drawing.
  */
-typedef struct tmx_image_layer {
-    bool repeatX; /**< When true, indicates the image is repeated along the X axis. */
-    bool repeatY; /**< When true, indicates the image is repeated along the Y axis. */
-    TmxImage image; /**< Sole image of this layer. */
-    bool hasImage; /**< When true, indicates 'image' has been set. Should always be true. */
-} TmxImageLayer;
-
-/**
- * Model of multiple layer elements: <layer>, <objectgroup>, <imagelayer>, or <group>. Defines a layer with attributes
- * common to all, more-specific layer types. The more-specific attributes
- */
-typedef struct tmx_layer {
-    TmxLayerType type; /**< The specific layer type indicating which associated layer ('exact') has mspecific values. */
-    uint32_t id; /**< Unique integer ID of the layer. */
-    char* name; /**< Name of the layer. */
-    char* classString; /**< (Optional) class of the layer, may be NULL. */ /* 'class' is reserved hence 'classString' */
-    bool visible; /**< When true, indicates the layer and its children will be drawn. */
-    double opacity; /**< Opacity of the layer and its children where 0.0 means the layer is fully transparent. */
-    Color tintColor; /**< (Optional) tint color applied to the layer and its chilren. */
-    bool hasTintColor; /**< When true, indicates 'tintColor' has been set. */
-    int32_t offsetX; /**< Horizontal offset of the layer and its children in pixels. */
-    int32_t offsetY; /**< Vertical offset of the layer and its children in pixels. */
-    double parallaxX; /**< Horizontal parallax factor. 1.0 means the layers position on the screen changes at the same
-                           rate as the camera. 0.0 means the layer will not move with the camera. */
-    double parallaxY; /**< Veritcal parallax factor. 1.0 means the layers position on the screen changes at the same
-                           rate as the camera. 0.0 means the layer will not move with the camera. */
-    TmxProperty* properties; /**< Array of named, typed properties that apply to this layer. */
-    uint32_t propertiesLength; /**< Length of the 'properties' array. */
-    TmxLayer* layers; /**< (Optional) array of child layers, may be NULL. This array is only used by group layers. */
-    uint32_t layersLength; /**< Length of the 'layers' array. */
-    union layer_type_union {
-        TmxTileLayer tileLayer;
-        TmxObjectGroup objectGroup;
-        TmxImageLayer imageLayer;
-    } exact; /**< Additional layer information specific to a tile, object, or image layer but not groups. */
-} TmxLayer;
+typedef struct tmx_text {
+    char* fontFamily; /**< Font family (e.g. "sans-serif") to be used to render the text. */
+    uint32_t pixelSize; /**< Size of the font in pixels. */
+    bool wrap; /**< When true, indicates word wrapping should be used when appropriate. */
+    Color color; /**< Color of the text. */
+    bool bold; /**< When true, indicates the text should be bolded. */
+    bool italic; /**< When true, indicates the text should be italicized. */
+    bool underline; /**< When true, indicates the text should be underlined. */
+    bool strikeOut; /**< When true, indicates the text should be struck/crossed out. */
+    bool kerning; /**< When true, indicates kerning should be used when drawing. */
+    TmxHorizontalAlignment halign; /**< Horizontal alignment of the text within its object. */
+    TmxVerticalAlignment valign; /**< Vertical alignment of the text within its object. */
+    char* content; /**< The string to be drawn. */
+    TmxTextLine* lines; /**< Array of pre-calculated lines with all values needed to quickly draw this text. */
+    uint32_t linesLength; /**< Length of the 'lines' array. */
+} TmxText;
 
 /**
  * Model of a <property> element. Describes a property of the model it's attached to with a name, type, and value.
@@ -281,86 +239,6 @@ typedef struct tmx_property {
     bool boolValue; /**< The property's value for boolean-typed properties. */
     Color colorValue; /**< The property's value for color-typed properties. */
 } TmxProperty;
-
-/**
- * Model of a <tileset> element. Defines an image, or serious of images, from which tiles are drawn along with
- * information on how to extract areas from within the image and/or how to align them within an object.
- */
-typedef struct tmx_tileset {
-    uint32_t firstGid; /**< First Global ID (GID) of a tile in this tileset. */
-    uint32_t lastGid; /**< Last Global ID (GID) of a tile in this tileset. */
-    char* source; /**< (Optional) source of this tileset, may be NULL. Only used for external tilesets. */
-    char* name; /**< Name of the tileset. */
-    char* classString; /**< (Optional) class of the tileset, may be NULL */
-    uint32_t tileWidth; /**< Maximum, although typically exact, width of the tiles in this tileset in pixels. */
-    uint32_t tileHeight; /**< Maximum, although typically exact, height of the tiles in this tileset in pixels. */
-    uint32_t spacing; /**< Spacing in pixels between tiles in this tileset. */
-    uint32_t margin; /**< Margin around the tiles in this tileset. */
-    uint32_t tileCount; /**< Number of tiles in this tileset. Note: 'lastGid' - 'firstGid' is not always 'tileCount.' */
-    uint32_t columns; /**< Number of tile columsn in this tileset. */
-    TmxObjectAlignment objectAlignment; /**< Controls the alignment of tiles of this tileset when used as objects. */
-    int32_t tileOffsetX; /**< Horizontal offset in pixels applied when drawing tiles from this tileset. */
-    int32_t tileOffsetY; /**< Vertical offset in pixels applied when drawing tiles form this tileset. */
-    TmxImage image; /**< (Optional) image from which this tilesets tiles are extracted. */
-    bool hasImage;  /**< When true, indicates 'image' is set. */
-    TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset. */
-    uint32_t propertiesLength; /**< Length of the 'properties' array. */
-    TmxTilesetTile* tiles; /**< Array of explicitly-defined tiles within the tileset. */
-    uint32_t tilesLength; /**< Length of the 'tiles' array. */
-} TmxTileset;
-
-/**
- * Model of an <animation> element. Defines a series of (tile) frames.
- */
-typedef struct tmx_animation {
-    TmxAnimationFrame* frames; /**< Array of frames. These frames identify tiles and durations to be displayed. */
-    uint32_t framesLength; /**< Length of the 'frames' array. */
-} TmxAnimation;
-
-/**
- * Model of a <tile> element within a <tileset> element. Contains information about tiles that are not or cannot be
- * implicitly determined from the tileset.
- */
-typedef struct tmx_tileset_tile {
-    uint32_t id; /**< Local ID of the tile within its tileset. This is a factor in but different from its Global ID. */
-    int32_t x; /**< X coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
-    int32_t y; /**< Y coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
-    uint32_t width; /**< Width, in pixels, of the sub-rectangle within the tileset's image to extract. */
-    uint32_t height; /**< Height, in pixels, of the sub-rectangle within the tileset's image to extract. */
-    TmxImage image; /**< (Optional) image to be used as the tile for "collection of images" tilesets. */
-    bool hasImage; /**< When true, indicates 'image' is set. */
-    TmxAnimation animation; /**< (Optional) animation, may be NULL. */
-    bool hasAnimation; /**< When true, indicates 'animation' is set. */
-    TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset tile. */
-    uint32_t propertiesLength; /**< Length of the 'properties' array. */
-    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
-} TmxTilesetTile;
-
-/**
- * Model of a <frame> element. Defines a temporal frame of an animation with the Global ID (GID) of the tile to be
- * displayed and the duration thereof.
- */
-typedef struct tmx_animation_frame {
-    uint32_t id; /**< The local ID, not Global ID (GID), of a tile within the animation's tileset. */
-    float duration; /**< Duration in milliseconds that the frame should be displayed. */
-} TmxAnimationFrame;
-
-/**
- * Contains the information and objects needed to quickly draw a <tile> in a raylib application.
- */
-typedef struct tmx_tile {
-    uint32_t gid; /**< Three possible uses: 1) If zero, indicates this tile is unused and the GID mapping to it doesn't
-                       exist within the map, 2) if the tile is an animation, indicates the first GID of the tileset the
-                       animation's frames reference, or 3) just the GID of the tile. */
-    Rectangle sourceRect; /**< Sub-rectangle within a tileset to extract that is to be drawn. */
-    Texture2D texture; /**< Texture in VRAM to be used to draw. May be used whole or as a source of a sub-rectangle. */
-    Vector2 offset; /**< Offset in pixels to be applied to the tile, derived from the tileset. */
-    TmxAnimation animation; /**< (Optional) animation. */
-    bool hasAnimation; /**< When true, indicates 'animation' is set. */
-    uint32_t frameIndex; /**< For animations, the current animation frame to draw. */
-    float frameTime; /**< For animations, an accumulator. The time, in seconds, the current frame has been drawn. */
-    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
-} TmxTile;
 
 /**
  * Model of an <object> element within an <objectgroup> element. Objects are amorphous entities of varying type but all
@@ -390,34 +268,141 @@ typedef struct tmx_object {
 } TmxObject;
 
 /**
- * Model of a <text> element along with some pre-calculated objects for efficient drawing.
+ * Model of an <objectgroup> element when combined with the 'TmxLayer' model. Defines an object layer of an arbitrary
+ * number of objects of varying types.
  */
-typedef struct tmx_text {
-    char* fontFamily; /**< Font family (e.g. "sans-serif") to be used to render the text. */
-    uint32_t pixelSize; /**< Size of the font in pixels. */
-    bool wrap; /**< When true, indicates word wrapping should be used when appropriate. */
-    Color color; /**< Color of the text. */
-    bool bold; /**< When true, indicates the text should be bolded. */
-    bool italic; /**< When true, indicates the text should be italicized. */
-    bool underline; /**< When true, indicates the text should be underlined. */
-    bool strikeOut; /**< When true, indicates the text should be struck/crossed out. */
-    bool kerning; /**< When true, indicates kerning should be used when drawing. */
-    TmxHorizontalAlignment halign; /**< Horizontal alignment of the text within its object. */
-    TmxVerticalAlignment valign; /**< Vertical alignment of the text within its object. */
-    char* content; /**< The string to be drawn. */
-    TmxTextLine* lines; /**< Array of pre-calculated lines with all values needed to quickly draw this text. */
-    uint32_t linesLength; /**< Length of the 'lines' array. */
-} TmxText;
+typedef struct tmx_object_group {
+    /* uint32_t width; */ /**< Width of the object layer in tiles. TMX documentation describes it as "meaningless." */
+    /* uint32_t height; */ /**< Height of the object layer in tiles. TMX documentation describes it as "meaningless." */
+    Color color; /**< (Optional) color used to display objects within the layer. */
+    bool hasColor; /**< When true, indicates 'color' has been set. */
+    TmxObjectGroupDrawOrder drawOrder; /**< Indicates the order in which objects in this layer are drawn. */
+    TmxObject* objects; /**< Array of objects contained by this object layer. */
+    uint32_t objectsLength; /**< Length of the 'objects' array. */
+    uint32_t* ySortedObjects; /**< Array of indexes of 'objects' sorted by the objects' y-coordinates. */
+} TmxObjectGroup;
 
 /**
- * Contains the information needed to quickly draw a single line of a <text> element.
+ * Model of an <imagelayer> element when combined with the 'TmxLayer' model. Defines a layer consisting of one image.
  */
-typedef struct tmx_text_line {
-    char* content; /**< The string to be drawn. This may be the whole content of the parent string or partial. */
-    Font font; /**< The raylib Font to be used when drawing. */
-    Vector2 position; /**< Absolute position of this line. This is separate from its object layer's potential offset. */
-    float spacing; /**< Spacing in pixels to be applied between each character when drawing. */
-} TmxTextLine;
+typedef struct tmx_image_layer {
+    bool repeatX; /**< When true, indicates the image is repeated along the X axis. */
+    bool repeatY; /**< When true, indicates the image is repeated along the Y axis. */
+    TmxImage image; /**< Sole image of this layer. */
+    bool hasImage; /**< When true, indicates 'image' has been set. Should always be true. */
+} TmxImageLayer;
+
+struct tmx_layer; /* Forward declaration of the following type. Contains children of the same type. */
+
+/**
+ * Model of multiple layer elements: <layer>, <objectgroup>, <imagelayer>, or <group>. Defines a layer with attributes
+ * common to all, more-specific layer types. The more-specific attributes
+ */
+typedef struct tmx_layer {
+    TmxLayerType type; /**< The specific layer type indicating which associated layer ('exact') has mspecific values. */
+    uint32_t id; /**< Unique integer ID of the layer. */
+    char* name; /**< Name of the layer. */
+    char* classString; /**< (Optional) class of the layer, may be NULL. */ /* 'class' is reserved hence 'classString' */
+    bool visible; /**< When true, indicates the layer and its children will be drawn. */
+    double opacity; /**< Opacity of the layer and its children where 0.0 means the layer is fully transparent. */
+    Color tintColor; /**< (Optional) tint color applied to the layer and its chilren. */
+    bool hasTintColor; /**< When true, indicates 'tintColor' has been set. */
+    int32_t offsetX; /**< Horizontal offset of the layer and its children in pixels. */
+    int32_t offsetY; /**< Vertical offset of the layer and its children in pixels. */
+    double parallaxX; /**< Horizontal parallax factor. 1.0 means the layers position on the screen changes at the same
+                           rate as the camera. 0.0 means the layer will not move with the camera. */
+    double parallaxY; /**< Veritcal parallax factor. 1.0 means the layers position on the screen changes at the same
+                           rate as the camera. 0.0 means the layer will not move with the camera. */
+    TmxProperty* properties; /**< Array of named, typed properties that apply to this layer. */
+    uint32_t propertiesLength; /**< Length of the 'properties' array. */
+    struct tmx_layer* layers; /**< (Optional) array of child layers, may be NULL. Only used by group layers. */
+    uint32_t layersLength; /**< Length of the 'layers' array. */
+    union layer_type_union {
+        TmxTileLayer tileLayer;
+        TmxObjectGroup objectGroup;
+        TmxImageLayer imageLayer;
+    } exact; /**< Additional layer information specific to a tile, object, or image layer but not groups. */
+} TmxLayer;
+
+/**
+ * Model of a <frame> element. Defines a temporal frame of an animation with the Global ID (GID) of the tile to be
+ * displayed and the duration thereof.
+ */
+typedef struct tmx_animation_frame {
+    uint32_t id; /**< The local ID, not Global ID (GID), of a tile within the animation's tileset. */
+    float duration; /**< Duration in milliseconds that the frame should be displayed. */
+} TmxAnimationFrame;
+
+/**
+ * Model of an <animation> element. Defines a series of (tile) frames.
+ */
+typedef struct tmx_animation {
+    TmxAnimationFrame* frames; /**< Array of frames. These frames identify tiles and durations to be displayed. */
+    uint32_t framesLength; /**< Length of the 'frames' array. */
+} TmxAnimation;
+
+/**
+ * Model of a <tile> element within a <tileset> element. Contains information about tiles that are not or cannot be
+ * implicitly determined from the tileset.
+ */
+typedef struct tmx_tileset_tile {
+    uint32_t id; /**< Local ID of the tile within its tileset. This is a factor in but different from its Global ID. */
+    int32_t x; /**< X coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
+    int32_t y; /**< Y coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
+    uint32_t width; /**< Width, in pixels, of the sub-rectangle within the tileset's image to extract. */
+    uint32_t height; /**< Height, in pixels, of the sub-rectangle within the tileset's image to extract. */
+    TmxImage image; /**< (Optional) image to be used as the tile for "collection of images" tilesets. */
+    bool hasImage; /**< When true, indicates 'image' is set. */
+    TmxAnimation animation; /**< (Optional) animation, may be NULL. */
+    bool hasAnimation; /**< When true, indicates 'animation' is set. */
+    TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset tile. */
+    uint32_t propertiesLength; /**< Length of the 'properties' array. */
+    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
+} TmxTilesetTile;
+
+/**
+ * Model of a <tileset> element. Defines an image, or serious of images, from which tiles are drawn along with
+ * information on how to extract areas from within the image and/or how to align them within an object.
+ */
+typedef struct tmx_tileset {
+    uint32_t firstGid; /**< First Global ID (GID) of a tile in this tileset. */
+    uint32_t lastGid; /**< Last Global ID (GID) of a tile in this tileset. */
+    char* source; /**< (Optional) source of this tileset, may be NULL. Only used for external tilesets. */
+    char* name; /**< Name of the tileset. */
+    char* classString; /**< (Optional) class of the tileset, may be NULL */
+    uint32_t tileWidth; /**< Maximum, although typically exact, width of the tiles in this tileset in pixels. */
+    uint32_t tileHeight; /**< Maximum, although typically exact, height of the tiles in this tileset in pixels. */
+    uint32_t spacing; /**< Spacing in pixels between tiles in this tileset. */
+    uint32_t margin; /**< Margin around the tiles in this tileset. */
+    uint32_t tileCount; /**< Number of tiles in this tileset. Note: 'lastGid' - 'firstGid' is not always 'tileCount.' */
+    uint32_t columns; /**< Number of tile columsn in this tileset. */
+    TmxObjectAlignment objectAlignment; /**< Controls the alignment of tiles of this tileset when used as objects. */
+    int32_t tileOffsetX; /**< Horizontal offset in pixels applied when drawing tiles from this tileset. */
+    int32_t tileOffsetY; /**< Vertical offset in pixels applied when drawing tiles form this tileset. */
+    TmxImage image; /**< (Optional) image from which this tilesets tiles are extracted. */
+    bool hasImage;  /**< When true, indicates 'image' is set. */
+    TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset. */
+    uint32_t propertiesLength; /**< Length of the 'properties' array. */
+    TmxTilesetTile* tiles; /**< Array of explicitly-defined tiles within the tileset. */
+    uint32_t tilesLength; /**< Length of the 'tiles' array. */
+} TmxTileset;
+
+/**
+ * Contains the information and objects needed to quickly draw a <tile> in a raylib application.
+ */
+typedef struct tmx_tile {
+    uint32_t gid; /**< Three possible uses: 1) If zero, indicates this tile is unused and the GID mapping to it doesn't
+                       exist within the map, 2) if the tile is an animation, indicates the first GID of the tileset the
+                       animation's frames reference, or 3) just the GID of the tile. */
+    Rectangle sourceRect; /**< Sub-rectangle within a tileset to extract that is to be drawn. */
+    Texture2D texture; /**< Texture in VRAM to be used to draw. May be used whole or as a source of a sub-rectangle. */
+    Vector2 offset; /**< Offset in pixels to be applied to the tile, derived from the tileset. */
+    TmxAnimation animation; /**< (Optional) animation. */
+    bool hasAnimation; /**< When true, indicates 'animation' is set. */
+    uint32_t frameIndex; /**< For animations, the current animation frame to draw. */
+    float frameTime; /**< For animations, an accumulator. The time, in seconds, the current frame has been drawn. */
+    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
+} TmxTile;
 
 /**
  * Model of a <map> element along with some pre-calculated objects for efficient drawing.
@@ -712,87 +697,99 @@ enum tmx_flip_flags {
     FLIP_FLAG_ROTATE_120 = 0x10000000
 };
 
-/* Declarations of some private stuff used to implement public stuff */
-typedef struct raytmx_external_tileset RaytmxExternalTileset;
-typedef struct raytmx_object_template RaytmxObjectTemplate;
-typedef struct raytmx_cached_texture RaytmxCachedTextureNode;
-typedef struct raytmx_cached_template RaytmxCachedTemplateNode;
-typedef struct raytmx_property_node RaytmxPropertyNode;
-typedef struct raytmx_tileset_node RaytmxTilesetNode;
-typedef struct raytmx_tileset_tile_node RaytmxTilesetTileNode;
-typedef struct raytmx_animation_frame_node RaytmxAnimationFrameNode;
-typedef struct raytmx_layer_node RaytmxLayerNode;
-typedef struct raytmx_tile_layer_tile_node RaytmxTileLayerTileNode;
-typedef struct raytmx_object_node RaytmxObjectNode;
-typedef struct raytmx_object_sorting_node RaytmxObjectSortingNode;
-typedef struct raytmx_poly_point_node RaytmxPolyPointNode;
-typedef struct raytmx_text_line_node RaytmxTextLineNode;
 typedef enum raytmx_document_format {
     FORMAT_TMX = 0, /* Tilemap with tilesets, layers, etc. */
     FORMAT_TSX, /* External tilesets */
     FORMAT_TX /* Object templates */
 } RaytmxDocumentFormat;
+
 typedef struct raytmx_external_tileset {
     TmxTileset tileset;
     bool isSuccess; /* 'isSuccess' is true when the external tileset was successfully loaded */
 } RaytmxExternalTileset;
+
 typedef struct raytmx_object_template {
     TmxTileset tileset;
     TmxObject object;
     bool isSuccess, hasTileset; /* 'isSuccess' is true when the object template was successfully loaded */
 } RaytmxObjectTemplate;
+
+struct raytmx_cached_texture; /* Forward declaration */
 typedef struct raytmx_cached_texture {
     char* fileName;
     Texture2D texture;
-    RaytmxCachedTextureNode* next;
+    struct raytmx_cached_texture* next;
 } RaytmxCachedTextureNode; /* Associates a file name with a Texture2D allowing for the reuse of textures in VRAM */
+
+struct raytmx_cached_template; /* Forward declaration */
 typedef struct raytmx_cached_template {
     char* fileName;
     RaytmxObjectTemplate objectTemplate;
-    RaytmxCachedTemplateNode* next;
+    struct raytmx_cached_template* next;
 } RaytmxCachedTemplateNode; /* Associates a file name with an object template */
+
+struct raytmx_property_node; /* Forward declaration */
 typedef struct raytmx_property_node {
     TmxProperty property;
-    RaytmxPropertyNode* next;
+    struct raytmx_property_node* next;
 } RaytmxPropertyNode;
+
+struct raytmx_tileset_node; /* Forward declaration */
 typedef struct raytmx_tileset_node {
     TmxTileset tileset;
-    RaytmxTilesetNode* next;
+    struct raytmx_tileset_node* next;
 } RaytmxTilesetNode;
+
+struct raytmx_tileset_tile_node; /* Forward declaration */
 typedef struct raytmx_tileset_tile_node {
     TmxTilesetTile tile;
-    RaytmxTilesetTileNode* next;
+    struct raytmx_tileset_tile_node* next;
 } RaytmxTilesetTileNode;
+
+struct raytmx_animation_frame_node; /* Forward declaration */
 typedef struct raytmx_animation_frame_node {
     TmxAnimationFrame frame;
-    RaytmxAnimationFrameNode* next;
+    struct raytmx_animation_frame_node* next;
 } RaytmxAnimationFrameNode;
+
+struct raytmx_layer_node; /* Forward declaration */
 typedef struct raytmx_layer_node {
     TmxLayer layer;
     uint32_t childrenLength;
-    RaytmxLayerNode *next, *parent, *childrenRoot, *childrenTail;
+    struct raytmx_layer_node *next, *parent, *childrenRoot, *childrenTail;
 } RaytmxLayerNode;
+
+struct raytmx_tile_layer_tile_node; /* Forward declaration */
 typedef struct raytmx_tile_layer_tile_node {
     uint32_t gid;
-    RaytmxTileLayerTileNode* next;
+    struct raytmx_tile_layer_tile_node* next;
 } RaytmxTileLayerTileNode;
+
+struct raytmx_object_node; /* Forward declaration */
 typedef struct raytmx_object_node {
     TmxObject object;
-    RaytmxObjectNode* next;
+    struct raytmx_object_node* next;
 } RaytmxObjectNode;
+
+struct raytmx_object_sorting_node; /* Forward declaration */
 typedef struct raytmx_object_sorting_node {
     double y;
     uint32_t index;
-    RaytmxObjectSortingNode* next;
+    struct raytmx_object_sorting_node* next;
 } RaytmxObjectSortingNode;
+
+struct raytmx_poly_point_node; /* Forward declaration */
 typedef struct raytmx_poly_point_node {
     Vector2 point;
-    RaytmxPolyPointNode* next;
+    struct raytmx_poly_point_node* next;
 } RaytmxPolyPointNode;
+
+struct raytmx_text_line_node; /* Forward declaration */
 typedef struct raytmx_text_line_node {
     TmxTextLine line;
-    RaytmxTextLineNode* next;
+    struct raytmx_text_line_node* next;
 } RaytmxTextLineNode;
+
 typedef struct raytmx_state {
     RaytmxDocumentFormat format;
     char documentDirectory[512];

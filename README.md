@@ -7,7 +7,7 @@ Header-only raylib library for loading and drawing Tiled's TMX tilemap documents
 
 ## Features
 
-- Portable C99, tested with GCC (Windows and Linux) and MSVC
+- Portable C99, tested with GCC (Windows and Linux), Clang (macOS), and MSVC
 - Supports external tilesets and object templates
 - Supports animations
 - Supports ZLIB and GZIP compression for tile layer data

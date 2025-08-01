@@ -236,9 +236,9 @@ enum {
     HOXML_REF_TYPE_HEX /* A value of a character given as a hexadecimal number */
 };
 
-typedef struct _hoxml_node_t hoxml_node_t;
+struct _hoxml_node_t;
 typedef struct _hoxml_node_t {
-    hoxml_node_t* parent; /* Points to the parent node, or NULL if this is the root */
+    struct _hoxml_node_t* parent; /* Points to the parent node, or NULL if this is the root */
     char* end; /* Points to the last byte of this node's data */
     int flags; /* May contain any number of the flags defined in hoxml_node_flags */
     char tag; /* Where the tag string will be stored in the buffer, must be defined last */
