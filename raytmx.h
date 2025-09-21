@@ -3336,7 +3336,8 @@ bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle sc
         /* The raw GID may have bit flags on it. They need to be removed in order to get the actual GID value.*/
         uint32_t gid = GetGid(localRawGid, NULL, NULL, NULL, NULL);
         /* Get the tile's metadata from knowing its GID */
-        *tile = map->gidsToTiles[gid];
+        if (gid < map->gidsToTilesLength) /* Bounds check */
+            *tile = map->gidsToTiles[gid];
     }
     if (tileRect != NULL) {
         /* Calculate the tile's destination rectangle, in pixels */
