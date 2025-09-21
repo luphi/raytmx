@@ -302,10 +302,10 @@ typedef struct tmx_layer {
     TmxLayerType type; /**< The specific layer type indicating which associated layer ('exact') has mspecific values. */
     uint32_t id; /**< Unique integer ID of the layer. */
     char* name; /**< Name of the layer. */
-    char* classString; /**< (Optional) class of the layer, may be NULL. */ /* 'class' is reserved hence 'classString' */
+    char* classString; /**< (Optional) class of the layer. If unused, defaults to an empty string. */
     bool visible; /**< When true, indicates the layer and its children will be drawn. */
     double opacity; /**< Opacity of the layer and its children where 0.0 means the layer is fully transparent. */
-    Color tintColor; /**< (Optional) tint color applied to the layer and its chilren. */
+    Color tintColor; /**< (Optional) tint color applied to the layer and its children. */
     bool hasTintColor; /**< When true, indicates 'tintColor' has been set. */
     int32_t offsetX; /**< Horizontal offset of the layer and its children in pixels. */
     int32_t offsetY; /**< Vertical offset of the layer and its children in pixels. */
@@ -347,6 +347,7 @@ typedef struct tmx_animation {
  */
 typedef struct tmx_tileset_tile {
     uint32_t id; /**< Local ID of the tile within its tileset. This is a factor in but different from its Global ID. */
+    char* classString; /**< (Optional) class of the tile. If unused, defaults to an empty string. */
     int32_t x; /**< X coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
     int32_t y; /**< Y coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
     uint32_t width; /**< Width, in pixels, of the sub-rectangle within the tileset's image to extract. */
@@ -369,7 +370,7 @@ typedef struct tmx_tileset {
     uint32_t lastGid; /**< Last Global ID (GID) of a tile in this tileset. */
     char* source; /**< (Optional) source of this tileset, may be NULL. Only used for external tilesets. */
     char* name; /**< Name of the tileset. */
-    char* classString; /**< (Optional) class of the tileset, may be NULL */
+    char* classString; /**< (Optional) class of the tileset. If unused, defaults to an empty string. */
     uint32_t tileWidth; /**< Maximum, although typically exact, width of the tiles in this tileset in pixels. */
     uint32_t tileHeight; /**< Maximum, although typically exact, height of the tiles in this tileset in pixels. */
     uint32_t spacing; /**< Spacing in pixels between tiles in this tileset. */
@@ -1855,9 +1856,11 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
         if (raytmxState->tilesetTile != NULL) { /* If the <tile> corresponds to a tileset tile */
             if (strcmp(hoxmlContext->attribute, "id") == 0)
                 raytmxState->tilesetTile->id = atoi(hoxmlContext->value);
-            else if (strcmp(hoxmlContext->attribute, "type") == 0 || strcmp(hoxmlContext->attribute, "class") == 0)
-                raytmxState->tilesetTile->id = atoi(hoxmlContext->value);
-            else if (strcmp(hoxmlContext->attribute, "x") == 0)
+            else if (strcmp(hoxmlContext->attribute, "type") == 0 || strcmp(hoxmlContext->attribute, "class") == 0) {
+                raytmxState->tilesetTile->classString =
+                    (char*)MemAllocZero((unsigned int)strlen(hoxmlContext->value) + 1);
+                StringCopy(raytmxState->tilesetTile->classString, hoxmlContext->value);
+            } else if (strcmp(hoxmlContext->attribute, "x") == 0)
                 raytmxState->tilesetTile->x = atoi(hoxmlContext->value);
             else if (strcmp(hoxmlContext->attribute, "y") == 0)
                 raytmxState->tilesetTile->y = atoi(hoxmlContext->value);
@@ -2388,6 +2391,11 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
     else if (strcmp(hoxmlContext->tag, "tile") == 0) {
         if (raytmxState->tilesetTile != NULL) {
             /* Apply default values for the attribute(s) that aren't covered by a simple memset(x, 0, sizeof(x)) */
+            if (raytmxState->tilesetTile->classString == NULL) { /* If this <tile> didn't have a 'class' attribute */
+                /* The default value for 'class' is "" (an empty string) */
+                raytmxState->tilesetTile->classString = (char*)MemAlloc(1);
+                raytmxState->tilesetTile->classString[0] = '\0';
+            }
             if (raytmxState->tilesetTile->hasImage) {
                 /* The 'width' and 'height' attributes default to the tile's image's width and height, respectively */
                 if (raytmxState->tilesetTile->width == 0)
@@ -3148,6 +3156,7 @@ void FreeTileset(TmxTileset tileset) {
     }
     for (uint32_t i = 0; i < tileset.tilesLength; i++) {
         TmxTilesetTile tile = tileset.tiles[i];
+        FreeString(tile.classString);
         if (tile.hasImage) {
             FreeString(tile.image.source);
             UnloadTexture(tile.image.texture);
@@ -4043,6 +4052,8 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* t
                     if (i == 0)
                         TraceLog(logLevel, "      frames:");
                     TraceLog(logLevel, "        ID: %u", tile.animation.frames[i].id);
+                    if (tileset.classString[0] != '\0')
+                        TraceLog(logLevel, "          class: \"%s\"", tileset.classString);
                     TraceLog(logLevel, "          duration: %f", tile.animation.frames[i].duration);
                 }
             }
