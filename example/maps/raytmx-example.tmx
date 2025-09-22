@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.11" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="36" height="52" tilewidth="16" tileheight="16" infinite="0" parallaxoriginx="288" parallaxoriginy="416" nextlayerid="18" nextobjectid="39">
- <tileset firstgid="1" name="ruins" tilewidth="16" tileheight="16" tilecount="140" columns="7">
+ <tileset firstgid="1" name="ruins" tilewidth="16" tileheight="16" tilecount="98" columns="7">
   <image source="../tilesets/ruins.png" width="112" height="224"/>
   <tile id="14">
    <objectgroup draworder="index" id="2">
@@ -206,14 +206,14 @@
    </objectgroup>
   </tile>
  </tileset>
- <tileset firstgid="141" name="grass" tilewidth="16" tileheight="16" tilecount="40" columns="4">
+ <tileset firstgid="99" name="grass" tilewidth="16" tileheight="16" tilecount="40" columns="4">
   <image source="../tilesets/grass.png" width="64" height="160"/>
  </tileset>
- <tileset firstgid="181" name="fade" tilewidth="16" tileheight="16" tilecount="6" columns="2">
+ <tileset firstgid="139" name="fade" tilewidth="16" tileheight="16" tilecount="6" columns="2">
   <image source="../tilesets/fade.png" width="32" height="48"/>
  </tileset>
- <tileset firstgid="187" source="../tilesets/shadows.tsx"/>
- <tileset firstgid="203" source="../tilesets/trees.tsx"/>
+ <tileset firstgid="145" source="../tilesets/shadows.tsx"/>
+ <tileset firstgid="161" source="../tilesets/trees.tsx"/>
  <objectgroup id="15" name="Text">
   <object id="12" x="336" y="576" width="48" height="17.875">
    <text fontfamily="Segoe UI" pixelsize="12" wrap="1" color="#55ffff">raytmx</text>
@@ -222,7 +222,7 @@
  <group id="5" name="Floors">
   <layer id="10" name="Light grass" width="36" height="52">
    <data encoding="base64" compression="zlib">
-   eJztzsEJACAMBMHrH3zYUUqzhjwEMTOw/00AgOl2Up1u/6xmfvz48ePHzws/AAAA/OEAXzNfHQ==
+   eJztzrENACAMBLHflYI1MxozpEBCxJauvwQAmG4n1en2z2rmx48fP378vPADAADAHw6UKUWF
   </data>
   </layer>
   <layer id="9" name="Ruin tiles" width="36" height="52">
@@ -232,7 +232,7 @@
   </layer>
   <layer id="7" name="Fades to black" width="36" height="52">
    <data encoding="base64" compression="zlib">
-   eJzt0kEKgDAQQ9Ee1aPkUha8nQUpzKJWZpFx8x90NYEEsTUAAAAAAACvM5eVa0foyGTl2hE6Mlm5doSOTFauHaEjk5VrR+h4dY3+cT/m6z/vqfgei87dTVU7QufupqodU396j9Wr+F8AAMC3G12lHh4=
+   eJzt0kEKgDAQQ9Ee1aNkb8ErW5DCLGplFhk3/0FXE0gQWwMAAAAAAPA6c1m5doSOTFauHaEjk5VrR+jIZOXaEToyWbl2hI5X1+gf92O+/vOeiu+x6NzdVLUjdO5uqtox9af3WL2K/wUAAHy7AR4sGTI=
   </data>
   </layer>
   <layer id="8" name="Ruin stairs" width="36" height="52">
@@ -242,12 +242,12 @@
   </layer>
   <layer id="12" name="Shadows 1" width="36" height="52">
    <data encoding="base64" compression="zlib">
-   eJzt1MsNgzAQBNAtJaVQCqVQCn0AkfkoSVkZFEAWApMLnj3MkyzL+OCR14uZiIiIiD8jxpRY5/bG+EQ51jWblxzeXL2X3O/pqk6sOrL7apXqK0bGVD2YPee9Xqx8ZzXx8n/szUp2hlhLzNOZ1e0vwzbCsod7qvZ7d8MZdYZj/qY8aU9/eUKDecDbjb/h3gLmIneeuV7osbmXNq+orxh5MB6Eow95yyMiIiL+fQFwAERb
+   eJzt1MsNgzAQBNAthVJSCqXQQgBBEgVEKZTGID6yEDFc4tnDPMmyjA8eeb2YiYiIiPjzxvhE1ql1GH2QY1uzecnhzdV7Sf2erurEqiO7rzaxvmJkjNWD2XPe68XK96smXv6PrVnOzhAqiXkqs6FcMuyjWfdwT8Vx799wxpDgmNuUJ672l2d8Yn7h7YbfcG8j5kfqPHO90GNzL+2+QV8x8mBkhKNPecsjIiIi/k00WDe5
   </data>
   </layer>
   <layer id="11" name="Shadows 2" width="36" height="52">
    <data encoding="base64" compression="zlib">
-   eJzt0TEKACAMBMH8/1sK+iwt7S3CwQxcvyRVAADwb9zN7ojHutvdEaH8MusGSa0AAACQ4AD0ZAxZ
+   eJzt0TEKACAMBMH8/wcK+lYt7S3CwQxcvyRVAADwb9zN7ojHutvdEaH8MusGSa0AAACQ4ABi3wm5
   </data>
   </layer>
  </group>
@@ -266,12 +266,12 @@
  <group id="3" name="Trees">
   <layer id="14" name="Trees 1" width="36" height="52">
    <data encoding="base64" compression="zlib">
-   eJzt1DEOACEIRFHvf721ddv1GNKQ2IDFJozFfwkFHXHA1gAAgMJj1ZO+2rB6tzm8V/ms5jaH92q3zHHal+p9Ou1L9T55TtE7VOeY3ZXi9rO7Utx+lpfi5qK8VP90lJfqn44yueV/BAAAAADgrwUVRDkc
+   eJzt1DEOACEIRFHvf6m1ddv1QNKQ2IDFJozFfwkFHXHA1gAAgMJj1ZO+2rB6tzm8V/ms5jaH92q3zHHal+p9Ou1L9T55TtE7VOeY3ZXi9rO7Utx+lpfi5qK8VP90lJfqn44yueV/BAAAAADgrwV0UjP0
   </data>
   </layer>
   <layer id="13" name="Trees 2" width="36" height="52">
    <data encoding="base64" compression="zlib">
-   eJzt0zEKwDAMA8D8/3vp2qztM+oxk8kmKHeg3Uh4DAAATszKlT5ic1dW+ojNU3nTRxyyZd9BYsuug8ReXQd+DwAAAP7tA/IPFMU=
+   eJzt0zEKwDAMA8D8/1Pp2qztg+oxk8kmKHeg3Uh4DAAATszKlT5ic1dW+ojNU3nTRxyyZd9BYsuug8ReXQd+DwAAAP7tAz4vEuU=
   </data>
   </layer>
  </group>

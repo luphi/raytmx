@@ -923,9 +923,24 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
         RaytmxTilesetNode* tilesetIterator = raytmxState->tilesetsRoot;
         for (uint32_t i = 0; tilesetIterator != NULL; i++) {
             TmxTileset tileset = tilesetIterator->tileset;
-            if (tileset.hasImage) /* If the tileset has a shared image and implicitly defines tiles */
-                tileset.lastGid = tileset.firstGid + tileset.tileCount - 1;
-            else if (tileset.tilesLength > 0) /* If the tileset is a "collection of images" with explicit tiles */
+
+            if (tileset.hasImage) { /* If the tileset has a shared image and implicitly defines tiles */
+                /* These tilesets implicitly have X tiles where X = <width in tiles> * <height in tiles>. But even */
+                /* these tilesets may have explicitly defined tiles for things like animations, or anything else. We */
+                /* need to know the greatest ID of those explicit tiles because they are allowed to have IDs that */
+                /* exceed the tileset's tile count and this affects global IDs, even in other tilesets. */
+                uint32_t greatestID = 0;
+                for (uint32_t i = 0; i < tileset.tilesLength; i++)
+                {
+                    if (greatestID < tileset.tiles[i].id)
+                        greatestID = tileset.tiles[i].id;
+                }
+                /* Determine the last GID, meaning the greatest GID value, from the greatest local ID and tile count */
+                if (greatestID >= tileset.tileCount)
+                    tileset.lastGid = tileset.firstGid + greatestID;
+                else
+                    tileset.lastGid = tileset.firstGid + tileset.tileCount - 1;
+            } else if (tileset.tilesLength > 0) /* If the tileset is a "collection of images" with explicit tiles */
                 tileset.lastGid = tileset.firstGid + tileset.tiles[tileset.tilesLength - 1].id - 1;
 
             if (gidsToTilesLength < tileset.lastGid + 1)
@@ -952,50 +967,47 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
         for (uint32_t i = 0; i < map->tilesetsLength; i++) {
             TmxTileset* tileset = &map->tilesets[i];
             if (tileset->hasImage) { /* If the tileset has a shared image (i.e. not a "collection of images") */
-                for (uint32_t id = 0; id < tileset->tileCount; id++) {
-                    uint32_t gid = id + tileset->firstGid, x = id % tileset->columns, y = id/ tileset->columns;
-                    bool hasExplicitSourceRect = false;
-                    gidsToTiles[gid].gid = gid;
+                /* First, iterate through the explicit tiles. These are explicitly defined with <tile> elements and */
+                /* are used to, among other things, provide animations and specific source rectangles. Note: Their */
+                /* IDs may exceed the tileset's tile count. */
+                for (uint32_t j = 0; j < tileset->tilesLength; j++)
+                {
+                    TmxTilesetTile tilesetTile = tileset->tiles[j];
+                    uint32_t gid = tileset->firstGid + tilesetTile.id;
 
-                    /* Search through the explicit tileset tiles for one with a matching local ID. Whereas most */
-                    /* tiles in a tile layer are implicit, some may have information given directly, like */
-                    /* animation frames or sub-rectangle values, as well as less relevant information. */
-                    for (uint32_t j = 0; j < tileset->tilesLength; j++) {
-                        TmxTilesetTile tilesetTile = tileset->tiles[j];
-                        if (tilesetTile.id == id) { /* If this tileset tile has explicitly-defined information */
-                            /* Typical tiles are implicit since everything that must be known about them can be */
-                            /* inferred from knowing the dimensions the tileset's image, dimensions of tiles, and */
-                            /* the (right-down) order of tiles within the tilest's image. However, tiles can have */
-                            /* additional, non-inferable information. This is particularly true for animations. */
-                            if (tilesetTile.hasAnimation) { /* If the tile is meta, pointing to other tiles */
-                                gidsToTiles[gid].hasAnimation = true;
-                                gidsToTiles[gid].animation = tilesetTile.animation;
-                                /* 'gid' is slightly repurposed for animations in that it's assigned with the */
-                                /* tileset's first GID rather than the tiles'. This is done because frames use */
-                                /* local IDs and the tileset's first GID is needed to get the frame's GID. */
-                                gidsToTiles[gid].gid = tileset->firstGid;
-                            } else if (tilesetTile.x != 0 || tilesetTile.y != 0 || tilesetTile.width != 0 ||
-                                    tilesetTile.height != 0) {
-                                /* This tile directly tells us the area within the tileset's image to use when */
-                                /* drawing, overriding the implicit dimensions derived from the map's 'tilewidth' */
-                                /* and 'tileheight' attributes. */
-                                hasExplicitSourceRect = true;
-                                gidsToTiles[gid].sourceRect.x = (float)tilesetTile.x;
-                                gidsToTiles[gid].sourceRect.y = (float)tilesetTile.y;
-                                gidsToTiles[gid].sourceRect.width = (float)tilesetTile.width;
-                                gidsToTiles[gid].sourceRect.height = (float)tilesetTile.height;
-                            }
-
-                            /* Tiles may have child object groups. These objects are a form of collision information. */
-                            /* The object group may be empty or may have objects. A simple assignment covers both. */
-                            gidsToTiles[gid].objectGroup = tilesetTile.objectGroup;
-
-                            break; /* The tile was found - no need to check the rest */
-                        }
+                    if (tilesetTile.hasAnimation) { /* If the tile is meta, pointing to a series of other tiles */
+                        gidsToTiles[gid].hasAnimation = true;
+                        gidsToTiles[gid].animation = tilesetTile.animation;
+                        /* 'gid' is slightly repurposed for animations in that it's assigned with the tileset's first */
+                        /* GID rather than the tiles'. This is done because frames use local IDs and the tileset's */
+                        /* first GID is needed by draw functions to get the frame's GID. */
+                        gidsToTiles[gid].gid = tileset->firstGid;
+                    } else if (tilesetTile.x != 0 || tilesetTile.y != 0 || tilesetTile.width != 0 ||
+                            tilesetTile.height != 0) {
+                        /* This tile directly tells us the area within the tileset's image to use when drawing, */
+                        /* overriding the implicit dimensions derived from the map's tile width and height. */
+                        gidsToTiles[gid].sourceRect.x = (float)tilesetTile.x;
+                        gidsToTiles[gid].sourceRect.y = (float)tilesetTile.y;
+                        gidsToTiles[gid].sourceRect.width = (float)tilesetTile.width;
+                        gidsToTiles[gid].sourceRect.height = (float)tilesetTile.height;
                     }
 
+                    /* Tiles may have child object groups. These objects are a form of collision information. The */
+                    /* object group may be empty or may have objects. A simple assignment covers both. */
+                    gidsToTiles[gid].objectGroup = tilesetTile.objectGroup;
+                }
+                /* Second, loop through the implicit tiles. These are inferred from knowing the dimensions of the */
+                /* tileset's image, dimensiosn of tiles, and the (right-down) order of tiles within the image. */
+                for (uint32_t id = 0; id < tileset->tileCount; id++) {
+                    uint32_t gid = id + tileset->firstGid, x = id % tileset->columns, y = id / tileset->columns;
+                    gidsToTiles[gid].gid = gid;
+
                     if (!gidsToTiles[gid].hasAnimation) { /* If the tile is of the typical, static variety */
-                        if (!hasExplicitSourceRect) { /* If that section was not explicitly defined */
+                        /* If that source renctangle within the image was NOT explicitly defined. */
+                        /* Note: Float comparisons like this are typically unreliable but the GIDs-to-tiles array is */
+                        /* initialized with zeroes making this accurate. */
+                        if (gidsToTiles[gid].sourceRect.x == 0.0f && gidsToTiles[gid].sourceRect.y == 0.0f &&
+                            gidsToTiles[gid].sourceRect.width == 0.0f && gidsToTiles[gid].sourceRect.height == 0.0f) {
                             /* Calculate the area within the texture to be drawn from contextual information */
                             gidsToTiles[gid].sourceRect.x = (float)(tileset->margin + (x * tileset->tileWidth) +
                                 (x * tileset->spacing));
@@ -1007,8 +1019,8 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
                         gidsToTiles[gid].texture = tileset->image.texture;
                         gidsToTiles[gid].offset.x = (float)tileset->tileOffsetX;
                         gidsToTiles[gid].offset.y = (float)tileset->tileOffsetY;
-                    }
-                }
+                    } /* if (!gidsToTiles[gid].hasAnimation) */
+                } /* for (uint32_t id = 0; id < tileset->tileCount; id++) */
             } else { /* If the tileset is a collection of images where each tile has its own image */
                 for (uint32_t j = 0; j < tileset->tilesLength; j++) {
                     TmxTilesetTile tilesetTile = tileset->tiles[j];
