@@ -1000,9 +1000,9 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
                 /* tileset's image, dimensiosn of tiles, and the (right-down) order of tiles within the image. */
                 for (uint32_t id = 0; id < tileset->tileCount; id++) {
                     uint32_t gid = id + tileset->firstGid, x = id % tileset->columns, y = id / tileset->columns;
-                    gidsToTiles[gid].gid = gid;
-
                     if (!gidsToTiles[gid].hasAnimation) { /* If the tile is of the typical, static variety */
+                        /* Tell the tile its GID. This variable is used for another, related purpose for animations. */
+                        gidsToTiles[gid].gid = gid;
                         /* If that source renctangle within the image was NOT explicitly defined. */
                         /* Note: Float comparisons like this are typically unreliable but the GIDs-to-tiles array is */
                         /* initialized with zeroes making this accurate. */
