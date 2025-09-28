@@ -329,7 +329,7 @@ typedef struct tmx_layer {
  * displayed and the duration thereof.
  */
 typedef struct tmx_animation_frame {
-    uint32_t id; /**< The local ID, not Global ID (GID), of a tile within the animation's tileset. */
+    uint32_t gid; /**< The Global ID (GID) of a tile from the animation's tileset to be drawn for some duration. */
     float duration; /**< Duration in milliseconds that the frame should be displayed. */
 } TmxAnimationFrame;
 
@@ -354,8 +354,8 @@ typedef struct tmx_tileset_tile {
     uint32_t height; /**< Height, in pixels, of the sub-rectangle within the tileset's image to extract. */
     TmxImage image; /**< (Optional) image to be used as the tile for "collection of images" tilesets. */
     bool hasImage; /**< When true, indicates 'image' is set. */
-    TmxAnimation animation; /**< (Optional) animation, may be NULL. */
-    bool hasAnimation; /**< When true, indicates 'animation' is set. */
+    TmxAnimation animation; /**< (Optional) animation. Lists GIDs to be drawn temporarily and periodically. */
+    bool hasAnimation; /**< When true, indicates 'animation' is assigned. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset tile. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
     TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
@@ -392,14 +392,12 @@ typedef struct tmx_tileset {
  * Contains the information and objects needed to quickly draw a <tile> in a raylib application.
  */
 typedef struct tmx_tile {
-    uint32_t gid; /**< Three possible uses: 1) If zero, indicates this tile is unused and the GID mapping to it doesn't
-                       exist within the map, 2) if the tile is an animation, indicates the first GID of the tileset the
-                       animation's frames reference, or 3) just the GID of the tile. */
+    uint32_t gid; /**< Global ID (GID) unique to the tile, used for lookups. 0 means the tile is effectively unused. */
     Rectangle sourceRect; /**< Sub-rectangle within a tileset to extract that is to be drawn. */
     Texture2D texture; /**< Texture in VRAM to be used to draw. May be used whole or as a source of a sub-rectangle. */
     Vector2 offset; /**< Offset in pixels to be applied to the tile, derived from the tileset. */
-    TmxAnimation animation; /**< (Optional) animation. */
-    bool hasAnimation; /**< When true, indicates 'animation' is set. */
+    TmxAnimation animation; /**< (Optional) animation. Lists GIDs to be drawn temporarily and periodically. */
+    bool hasAnimation; /**< When true, indicates 'animation' is assigned. */
     uint32_t frameIndex; /**< For animations, the current animation frame to draw. */
     float frameTime; /**< For animations, an accumulator. The time, in seconds, the current frame has been drawn. */
     TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
@@ -970,20 +968,18 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
                 /* First, iterate through the explicit tiles. These are explicitly defined with <tile> elements and */
                 /* are used to, among other things, provide animations and specific source rectangles. Note: Their */
                 /* IDs may exceed the tileset's tile count. */
-                for (uint32_t j = 0; j < tileset->tilesLength; j++)
-                {
+                for (uint32_t j = 0; j < tileset->tilesLength; j++) {
                     TmxTilesetTile tilesetTile = tileset->tiles[j];
                     uint32_t gid = tileset->firstGid + tilesetTile.id;
-
                     if (tilesetTile.hasAnimation) { /* If the tile is meta, pointing to a series of other tiles */
                         gidsToTiles[gid].hasAnimation = true;
                         gidsToTiles[gid].animation = tilesetTile.animation;
-                        /* 'gid' is slightly repurposed for animations in that it's assigned with the tileset's first */
-                        /* GID rather than the tiles'. This is done because frames use local IDs and the tileset's */
-                        /* first GID is needed by draw functions to get the frame's GID. */
-                        gidsToTiles[gid].gid = tileset->firstGid;
-                    } else if (tilesetTile.x != 0 || tilesetTile.y != 0 || tilesetTile.width != 0 ||
-                            tilesetTile.height != 0) {
+                        /* Frames' tile (G)IDs are initially set with local values. Now that all tilesets are known */
+                        /* and this tileset's first global ID is available, update the ID to be global. */
+                        for (uint32_t k = 0; k < gidsToTiles[gid].animation.framesLength; k++)
+                            gidsToTiles[gid].animation.frames[k].gid += tileset->firstGid;
+                    }
+                    if (tilesetTile.x != 0 || tilesetTile.y != 0 || tilesetTile.width != 0 || tilesetTile.height != 0) {
                         /* This tile directly tells us the area within the tileset's image to use when drawing, */
                         /* overriding the implicit dimensions derived from the map's tile width and height. */
                         gidsToTiles[gid].sourceRect.x = (float)tilesetTile.x;
@@ -991,35 +987,32 @@ RAYTMX_DEC TmxMap* LoadTMX(const char* fileName) {
                         gidsToTiles[gid].sourceRect.width = (float)tilesetTile.width;
                         gidsToTiles[gid].sourceRect.height = (float)tilesetTile.height;
                     }
-
                     /* Tiles may have child object groups. These objects are a form of collision information. The */
                     /* object group may be empty or may have objects. A simple assignment covers both. */
                     gidsToTiles[gid].objectGroup = tilesetTile.objectGroup;
-                }
+                    gidsToTiles[gid].gid = gid; /* Tell the tile its GID */
+                } /* for (uint32_t j = 0; j < tileset->tilesLength; j++) */
                 /* Second, loop through the implicit tiles. These are inferred from knowing the dimensions of the */
                 /* tileset's image, dimensiosn of tiles, and the (right-down) order of tiles within the image. */
                 for (uint32_t id = 0; id < tileset->tileCount; id++) {
                     uint32_t gid = id + tileset->firstGid, x = id % tileset->columns, y = id / tileset->columns;
-                    if (!gidsToTiles[gid].hasAnimation) { /* If the tile is of the typical, static variety */
-                        /* Tell the tile its GID. This variable is used for another, related purpose for animations. */
-                        gidsToTiles[gid].gid = gid;
-                        /* If that source renctangle within the image was NOT explicitly defined. */
-                        /* Note: Float comparisons like this are typically unreliable but the GIDs-to-tiles array is */
-                        /* initialized with zeroes making this accurate. */
-                        if (gidsToTiles[gid].sourceRect.x == 0.0f && gidsToTiles[gid].sourceRect.y == 0.0f &&
-                            gidsToTiles[gid].sourceRect.width == 0.0f && gidsToTiles[gid].sourceRect.height == 0.0f) {
-                            /* Calculate the area within the texture to be drawn from contextual information */
-                            gidsToTiles[gid].sourceRect.x = (float)(tileset->margin + (x * tileset->tileWidth) +
-                                (x * tileset->spacing));
-                            gidsToTiles[gid].sourceRect.y = (float)(tileset->margin + (y * tileset->tileHeight) +
-                                (y * tileset->spacing));
-                            gidsToTiles[gid].sourceRect.width = (float)tileset->tileWidth;
-                            gidsToTiles[gid].sourceRect.height = (float)tileset->tileHeight;
-                        }
-                        gidsToTiles[gid].texture = tileset->image.texture;
-                        gidsToTiles[gid].offset.x = (float)tileset->tileOffsetX;
-                        gidsToTiles[gid].offset.y = (float)tileset->tileOffsetY;
-                    } /* if (!gidsToTiles[gid].hasAnimation) */
+                    gidsToTiles[gid].gid = gid; /* Tell the tile its GID */
+                    /* If that source renctangle within the image was NOT explicitly defined. */
+                    /* Note: Float comparisons like this are typically unreliable but the GIDs-to-tiles array is */
+                    /* initialized with zeroes making this accurate. */
+                    if (gidsToTiles[gid].sourceRect.x == 0.0f && gidsToTiles[gid].sourceRect.y == 0.0f &&
+                        gidsToTiles[gid].sourceRect.width == 0.0f && gidsToTiles[gid].sourceRect.height == 0.0f) {
+                        /* Calculate the area within the texture to be drawn from contextual information */
+                        gidsToTiles[gid].sourceRect.x = (float)(tileset->margin + (x * tileset->tileWidth) +
+                            (x * tileset->spacing));
+                        gidsToTiles[gid].sourceRect.y = (float)(tileset->margin + (y * tileset->tileHeight) +
+                            (y * tileset->spacing));
+                        gidsToTiles[gid].sourceRect.width = (float)tileset->tileWidth;
+                        gidsToTiles[gid].sourceRect.height = (float)tileset->tileHeight;
+                    }
+                    gidsToTiles[gid].texture = tileset->image.texture;
+                    gidsToTiles[gid].offset.x = (float)tileset->tileOffsetX;
+                    gidsToTiles[gid].offset.y = (float)tileset->tileOffsetY;
                 } /* for (uint32_t id = 0; id < tileset->tileCount; id++) */
             } else { /* If the tileset is a collection of images where each tile has its own image */
                 for (uint32_t j = 0; j < tileset->tilesLength; j++) {
@@ -1164,7 +1157,8 @@ RAYTMX_DEC void AnimateTMX(TmxMap* map) {
     /* Iterate through the tiles, searching for those that are animations */
     for (uint32_t gid = 0; gid < map->gidsToTilesLength; gid++) {
         TmxTile* tile = &map->gidsToTiles[gid]; /* A pointer is used in case the frame time needs to be reassigned */
-        if (tile->gid > 0 && tile->hasAnimation) { /* If the GID maps to a valid tile and that tile is an animation */
+        /* If the GID maps to a valid tile, that tile is an animation, and the bounds check passes */
+        if (tile->gid > 0 && tile->hasAnimation && tile->frameIndex < tile->animation.framesLength) {
             tile->frameTime += dt;
             /* If the current frame has been displayed for its whole duration, or longer */
             if (tile->frameTime > tile->animation.frames[tile->frameIndex].duration) {
@@ -1888,7 +1882,7 @@ void HandleAttribute(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
     else if (strcmp(hoxmlContext->tag, "frame") == 0) {
         if (raytmxState->animationFrame != NULL) {
             if (strcmp(hoxmlContext->attribute, "tileid") == 0)
-                raytmxState->animationFrame->id = atoi(hoxmlContext->value);
+                raytmxState->animationFrame->gid = atoi(hoxmlContext->value);
             else if (strcmp(hoxmlContext->attribute, "duration") == 0)
                 raytmxState->animationFrame->duration = (float)atoi(hoxmlContext->value) / 1000.0f;
         }
@@ -2186,7 +2180,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
         TmxProperty* properties = (TmxProperty*)MemAllocZero(sizeof(TmxProperty) * raytmxState->propertiesLength);
         /* Copy the TmxProperty pointers into the array and free the nodes while we're at it */
         RaytmxPropertyNode* iterator = raytmxState->propertiesRoot;
-        for (uint32_t i = 0; i < raytmxState->propertiesLength; i++) {
+        for (uint32_t i = 0; iterator != NULL; i++) {
             properties[i] = iterator->property;
             RaytmxPropertyNode* parent = iterator;
             iterator = iterator->next;
@@ -2319,7 +2313,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     raytmxState->tilesetTilesLength);
                 /* Copy the TmxTilesetTile pointers into the array and free the nodes while we're at it */
                 RaytmxTilesetTileNode* iterator = raytmxState->tilesetTilesRoot;
-                for (uint32_t i = 0; i < raytmxState->tilesetTilesLength; i++) {
+                for (uint32_t i = 0; i < raytmxState->tilesetTilesLength && iterator != NULL; i++) {
                     tiles[i] = iterator->tile;
                     RaytmxTilesetTileNode* parent = iterator;
                     iterator = iterator->next;
@@ -2347,7 +2341,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                 raytmxState->animationFramesLength);
             /* Copy the TmxAnimationFrame pointers into the array and free the nodes while we're at it */
             RaytmxAnimationFrameNode* iterator = raytmxState->animationFramesRoot;
-            for (uint32_t i = 0; i < raytmxState->animationFramesLength; i++) {
+            for (uint32_t i = 0; iterator != NULL; i++) {
                 frames[i] = iterator->frame;
                 RaytmxAnimationFrameNode* parent = iterator;
                 iterator = iterator->next;
@@ -2382,7 +2376,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                 uint32_t* tiles = (uint32_t*)MemAllocZero(sizeof(uint32_t) * raytmxState->layerTilesLength);
                 /* Copy the GID into the array and free the nodes while we're at it */
                 RaytmxTileLayerTileNode* iterator = raytmxState->layerTilesRoot;
-                for (uint32_t i = 0; i < raytmxState->layerTilesLength; i++) {
+                for (uint32_t i = 0;  iterator != NULL; i++) {
                     tiles[i] = iterator->gid;
                     RaytmxTileLayerTileNode* parent = iterator;
                     iterator = iterator->next;
@@ -2518,7 +2512,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                 /* "31,32,33" where 31, 32, and 33 are GIDs */
                 char valueAsString[16]; /* Needs to fit all digits of a single value - should be more than enough */
                 char* iterator = hoxmlContext->content;
-                while (*iterator != '\0') { /* While not pointing to the end of the end of the string */
+                while (iterator != NULL && *iterator != '\0') { /* While not pointing to the end of the string */
                     memset(valueAsString, '\0', 16); /* Reset the value-as-a-string buffer with all zeroes */
                     /* Copy each character into the buffer until either a comma or the terminator is reached */
                     for (int i = 0; *iterator != ',' && *iterator != '\0'; i++) {
@@ -2537,7 +2531,7 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                 memset(tiles, 0, sizeof(uint32_t) * raytmxState->layerTilesLength);
                 /* Copy the GIDs into the array and free the nodes while we're at it */
                 RaytmxTileLayerTileNode* layerTilesIterator = raytmxState->layerTilesRoot;
-                for (uint32_t i = 0; i < raytmxState->layerTilesLength; i++) {
+                for (uint32_t i = 0; i < raytmxState->layerTilesLength && layerTilesIterator != NULL; i++) {
                     tiles[i] = layerTilesIterator->gid;
                     RaytmxTileLayerTileNode* layerTilesTemp = layerTilesIterator;
                     layerTilesIterator = layerTilesIterator->next;
@@ -2921,10 +2915,10 @@ void HandleElementEnd(RaytmxState* raytmxState, hoxml_context_t* hoxmlContext) {
                     TmxTextLine* lines = (TmxTextLine*)MemAllocZero(sizeof(TmxTextLine) * linesLength);
                     /* Copy the TmxTextLines into the array and free the nodes while we're at it */
                     RaytmxTextLineNode* iterator = linesRoot;
-                    for (uint32_t i = 0; i < linesLength; i++) {
+                    for (uint32_t i = 0; i < linesLength && iterator != NULL; i++) {
                         lines[i] = iterator->line;
-                        Vector2 textSize = MeasureTextEx(font, lines[i].content,
-                            (float)objectText->pixelSize, lines[i].spacing);
+                        Vector2 textSize = MeasureTextEx(font, lines[i].content, (float)objectText->pixelSize,
+                            lines[i].spacing);
 
                         /* Horizontal alignment */
                         if (objectText->halign == HORIZONTAL_ALIGNMENT_RIGHT)
@@ -3178,7 +3172,7 @@ void FreeTileset(TmxTileset tileset) {
                 MemFree(tile.properties);
             }
         }
-        if (tile.hasAnimation && tile.animation.frames != NULL)
+        if (tile.animation.frames != NULL)
             MemFree(tile.animation.frames);
     }
 }
@@ -3499,36 +3493,31 @@ void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, 
     TmxTile tile = map->gidsToTiles[gid];
     if (tile.gid == 0) /* If the GID is not known to exist in any tilesets within the map */
         return; /* Do not attempt to draw this tile */
+    if (tile.hasAnimation && tile.frameIndex < tile.animation.framesLength &&
+        tile.animation.frames[tile.frameIndex].gid < map->gidsToTilesLength) { /* If the tile is/has an animation */
+        /* Animation tiles are meta; they contain a list of other GIDs to be drawn. Get the actual tile to draw this */
+        /* frame from that list. */
+        gid = tile.animation.frames[tile.frameIndex].gid;
+        if (gid < map->gidsToTilesLength)
+            tile = map->gidsToTiles[gid];
+    }
 
-    if (tile.hasAnimation) {
-        /* Animations aren't really tiles. Instead, they contain frames that identify a tile to draw for the duration */
-        /* of that frame. */
-        /* The 'gid' of an animation tile is assigned with the first GID of the tileset and the frames have local IDs */
-        /* within that tileset. The GID of the frame, then, can be calculated by adding them together. */
-        gid = tile.gid + tile.animation.frames[tile.frameIndex].id;
-        /* Copy any flip flags that may be present in the layer data. */
-        gid |= rawGid & (FLIP_FLAG_HORIZONTAL | FLIP_FLAG_VERTICAL | FLIP_FLAG_DIAGONAL | FLIP_FLAG_ROTATE_120);
-        /* Draw the tile using the calculated GID of the frame, along with the possible flags. */
-        DrawTMXLayerTile(map, screenRect, gid, posX, posY, tint);
-    } else {
-        /* Determine where the tile will be drawn. raylib's coordinates consider [x, y] to be the top-left corner of */
-        /* the rectangle being drawn. The TMX documentation complicates things a bit saying "Larger tiles will extend */
-        /* at the top and right (anchored to the bottom left)" meaning that TMX considers [x, y] to be the */
-        /* bottom-left corner. The simplest way to reconcile the Y coordinate differences is to substract the */
-        /* texture's height at Y + 1. This way, tiles larger than the map's tile height values will be drawn further */
-        /* up (negative Y direction). */
-        Rectangle destRect;
-        destRect.x = posX + tile.offset.x;
-        destRect.y = posY + tile.offset.y + map->tileHeight - tile.sourceRect.height;
-        destRect.width = tile.sourceRect.width;
-        destRect.height = tile.sourceRect.height;
+    /* Determine where the tile will be drawn. raylib's coordinates consider [x, y] to be the top-left corner of the */
+    /* rectangle being drawn. The TMX documentation complicates things a bit saying "Larger tiles will extend at the */
+    /* top and right (anchored to the bottom left)" meaning that TMX considers [x, y] to be the bottom-left corner. */
+    /* The simplest way to reconcile the Y coordinate differences is to substract the texture's height at Y + 1. This */
+    /* way, tiles larger than the map's tile height values will be drawn further up (negative Y direction). */
+    Rectangle destRect;
+    destRect.x = posX + tile.offset.x;
+    destRect.y = posY + tile.offset.y + map->tileHeight - tile.sourceRect.height;
+    destRect.width = tile.sourceRect.width;
+    destRect.height = tile.sourceRect.height;
 
-        /* If the screen and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
-        if (CheckCollisionRecs(screenRect, destRect)) {
-            DrawTextureTile(/* texture: */ tile.texture, /* source: */ tile.sourceRect, /* dest: */ destRect,
-                /* flipX: */ isFlippedHorizontally, /* flipY: */ isFlippedVertically,
-                /* flipDiag: */ isFlippedDiagonally, /* tint: */ tint);
-        }
+    /* If the screen and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
+    if (CheckCollisionRecs(screenRect, destRect)) {
+        DrawTextureTile(/* texture: */ tile.texture, /* source: */ tile.sourceRect, /* dest: */ destRect,
+            /* flipX: */ isFlippedHorizontally, /* flipY: */ isFlippedVertically, /* flipDiag: */ isFlippedDiagonally,
+            /* tint: */ tint);
     }
 }
 
@@ -3548,27 +3537,29 @@ void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid,
     TmxTile tile = map->gidsToTiles[gid];
     if (tile.gid == 0) /* If the GID is not known to exist in any tilesets within the map */
         return; /* Do not attempt to draw this time */
+    if (tile.hasAnimation && tile.frameIndex < tile.animation.framesLength &&
+        tile.animation.frames[tile.frameIndex].gid < map->gidsToTilesLength) { /* If the tile is/has an animation */
+        /* Animation tiles are meta; they contain a list of other GIDs to be drawn. Get the actual tile to draw this */
+        /* frame from that list. */
+        gid = tile.animation.frames[tile.frameIndex].gid;
+        if (gid < map->gidsToTilesLength)
+            tile = map->gidsToTiles[gid];
+    }
 
-    if (tile.hasAnimation) {
-        /* Animations aren't really tiles. Instead, they contain frames that identify a tile to draw for the duration */
-        /* of that frame. That current tile should be drawn. */
-        DrawTMXLayerTile(map, screenRect, tile.gid + tile.animation.frames[tile.frameIndex].id, posX, posY, tint);
-    } else {
-        /* Determine the area in which to draw, and potentially stretch, the texture. This area matches that of the */
-        /* <object>, not the tile size. This also means that the Y coordinate needs consideration because raylib */
-        /* considers [x, y] to the be top-left corner of any area but the TMX format considers it the bottom-left. */
-        Rectangle destRect;
-        destRect.x = posX + tile.offset.x;
-        destRect.y = posY + tile.offset.y - height;
-        destRect.width = width;
-        destRect.height = height;
+    /* Determine the area in which to draw, and potentially stretch, the texture. This area matches that of the */
+    /* <object>, not the tile size. This also means that the Y coordinate needs consideration because raylib */
+    /* considers [x, y] to the be top-left corner of any area but the TMX format considers it the bottom-left. */
+    Rectangle destRect;
+    destRect.x = posX + tile.offset.x;
+    destRect.y = posY + tile.offset.y - height;
+    destRect.width = width;
+    destRect.height = height;
 
-        /* If the screen and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
-        if (CheckCollisionRecs(screenRect, destRect)) {
-            DrawTextureTile(/* texture: */ tile.texture, /* source: */ tile.sourceRect, /* dest: */ destRect,
-                /* flipX: */ isFlippedHorizontally, /* flipY: */ isFlippedVertically,
-                /* flipDiag: */ isFlippedDiagonally, /* tint: */ tint);
-        }
+    /* If the screen and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
+    if (CheckCollisionRecs(screenRect, destRect)) {
+        DrawTextureTile(/* texture: */ tile.texture, /* source: */ tile.sourceRect, /* dest: */ destRect,
+            /* flipX: */ isFlippedHorizontally, /* flipY: */ isFlippedVertically, /* flipDiag: */ isFlippedDiagonally,
+            /* tint: */ tint);
     }
 }
 
@@ -4063,7 +4054,7 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset* t
                 for (uint32_t i = 0; i < tile.animation.framesLength; i++) {
                     if (i == 0)
                         TraceLog(logLevel, "      frames:");
-                    TraceLog(logLevel, "        ID: %u", tile.animation.frames[i].id);
+                    TraceLog(logLevel, "        (G)ID: %u", tile.animation.frames[i].gid);
                     if (tileset.classString[0] != '\0')
                         TraceLog(logLevel, "          class: \"%s\"", tileset.classString);
                     TraceLog(logLevel, "          duration: %f", tile.animation.frames[i].duration);
