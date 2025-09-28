@@ -78,7 +78,7 @@ INCLUDE_PATHS = -I$(RAYLIB_PATH)/src \
 
 # Define library paths containing required libs: LDFLAGS
 #-----------------------------------------------------------------------------------------------------------------------
-LDFLAGS = -L. -L$(RAYLIB_RELEASE_PATH) -L$(RAYLIB_PATH)/src
+LDFLAGS = -L. -L$(RAYLIB_RELEASE_PATH)
 ifeq ($(PLATFORM_OS),WINDOWS)
 	# NOTE: The resource .rc file contains windows executable icon and properties
 	#LDFLAGS += $(RAYLIB_PATH)/src/raylib.rc.data
