@@ -177,7 +177,7 @@ typedef enum tmx_render_order {
  */
 typedef struct tmx_image {
     char* source; /**< File name and/or path referencing the image on disk. */
-    Color trans; /**< (Optional) color that defines is treated as transparent. Not currently implemented. */
+    Color trans; /**< [optional] Color that defines is treated as transparent. Not currently implemented. */
     bool hasTrans; /**< When true, indicates 'trans' has been set with a color to be treated as transparent. */
     uint32_t width; /**< Width of the image in pixels. */
     uint32_t height; /**< Height of the image in pixels. */
@@ -191,8 +191,8 @@ typedef struct tmx_image {
 typedef struct tmx_tile_layer {
     uint32_t width; /**< Width of the layer in tiles. */
     uint32_t height; /**< Height of the layer in tiles. */
-    char* encoding; /**< (Optional) encoding used to encode tiles. May be NULL, "base64," or "csv." */
-    char* compression; /**< (Optional) compression used to compress tiles. May be NULL, "gzip," "zlib," or "zstd." */
+    char* encoding; /**< [optional] Encoding used to encode tiles. May be NULL, "base64," or "csv." */
+    char* compression; /**< [optional] Compression used to compress tiles. May be NULL, "gzip," "zlib," or "zstd." */
     uint32_t* tiles; /**< Array of tile Global IDs (GIDs) contained by this tile layer. */
     uint32_t tilesLength; /**< Length of the 'tiles' array. */
 } TmxTileLayer;
@@ -256,12 +256,12 @@ typedef struct tmx_object {
     double rotation; /**< Rotation of the object in (clockwise) degrees around the object's (x, y) position. */
     uint32_t gid; /**< (Semi-optional) Global ID of a tile drawn as the object. If zero, the object is not a tile. */
     bool visible; /**< When true, indicates the object will be drawn. */
-    char* templateString; /**< (Optional) file name and/or path referencing an object template on disk applied to this
+    char* templateString; /**< [optional] File name and/or path referencing an object template on disk applied to this
                                 object. If NULL, no template is used. */
-    Vector2* points; /**< (Optional) array of ordered points that define a poly(gon|line). Relative, not absolute. */
+    Vector2* points; /**< [optional] Array of ordered points that define a poly(gon|line). Relative, not absolute. */
     uint32_t pointsLength; /**< Length of the 'points' array. */
-    Vector2* drawPoints; /**< (Optional) array used as a buffer when drawing. Equal in length to the 'points' array. */
-    TmxText* text; /**< (Optional) text to be drawn. */
+    Vector2* drawPoints; /**< [optional] Array used as a buffer when drawing. Equal in length to the 'points' array. */
+    TmxText* text; /**< [optional] Text to be drawn. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this object. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
     Rectangle aabb; /**< Axis-Aligned Bounding Box (AABB). */
@@ -274,7 +274,7 @@ typedef struct tmx_object {
 typedef struct tmx_object_group {
     /* uint32_t width; */ /**< Width of the object layer in tiles. TMX documentation describes it as "meaningless." */
     /* uint32_t height; */ /**< Height of the object layer in tiles. TMX documentation describes it as "meaningless." */
-    Color color; /**< (Optional) color used to display objects within the layer. */
+    Color color; /**< [optional] Color used to display objects within the layer. */
     bool hasColor; /**< When true, indicates 'color' has been set. */
     TmxObjectGroupDrawOrder drawOrder; /**< Indicates the order in which objects in this layer are drawn. */
     TmxObject* objects; /**< Array of objects contained by this object layer. */
@@ -302,10 +302,10 @@ typedef struct tmx_layer {
     TmxLayerType type; /**< The specific layer type indicating which associated layer ('exact') has mspecific values. */
     uint32_t id; /**< Unique integer ID of the layer. */
     char* name; /**< Name of the layer. */
-    char* classString; /**< (Optional) class of the layer. If unused, defaults to an empty string. */
+    char* classString; /**< [optional] Class of the layer. If unused, defaults to an empty string. */
     bool visible; /**< When true, indicates the layer and its children will be drawn. */
     double opacity; /**< Opacity of the layer and its children where 0.0 means the layer is fully transparent. */
-    Color tintColor; /**< (Optional) tint color applied to the layer and its children. */
+    Color tintColor; /**< [optional] Tint color applied to the layer and its children. */
     bool hasTintColor; /**< When true, indicates 'tintColor' has been set. */
     int32_t offsetX; /**< Horizontal offset of the layer and its children in pixels. */
     int32_t offsetY; /**< Vertical offset of the layer and its children in pixels. */
@@ -315,7 +315,7 @@ typedef struct tmx_layer {
                            rate as the camera. 0.0 means the layer will not move with the camera. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this layer. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
-    struct tmx_layer* layers; /**< (Optional) array of child layers, may be NULL. Only used by group layers. */
+    struct tmx_layer* layers; /**< [optional] Array of child layers, may be NULL. Only used by group layers. */
     uint32_t layersLength; /**< Length of the 'layers' array. */
     union layer_type_union {
         TmxTileLayer tileLayer;
@@ -347,18 +347,18 @@ typedef struct tmx_animation {
  */
 typedef struct tmx_tileset_tile {
     uint32_t id; /**< Local ID of the tile within its tileset. This is a factor in but different from its Global ID. */
-    char* classString; /**< (Optional) class of the tile. If unused, defaults to an empty string. */
+    char* classString; /**< [optional] Class of the tile. If unused, defaults to an empty string. */
     int32_t x; /**< X coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
     int32_t y; /**< Y coordinate, in pixels, of the sub-rectangle within the tileset's image to extract. */
     uint32_t width; /**< Width, in pixels, of the sub-rectangle within the tileset's image to extract. */
     uint32_t height; /**< Height, in pixels, of the sub-rectangle within the tileset's image to extract. */
-    TmxImage image; /**< (Optional) image to be used as the tile for "collection of images" tilesets. */
+    TmxImage image; /**< [optional] Image to be used as the tile for "collection of images" tilesets. */
     bool hasImage; /**< When true, indicates 'image' is set. */
-    TmxAnimation animation; /**< (Optional) animation. Lists GIDs to be drawn temporarily and periodically. */
+    TmxAnimation animation; /**< [optional] Animation. Lists GIDs to be drawn temporarily and periodically. */
     bool hasAnimation; /**< When true, indicates 'animation' is assigned. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset tile. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
-    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
+    TmxObjectGroup objectGroup; /**< [optional] 0+ objects representing collision information unique to the tile. */
 } TmxTilesetTile;
 
 /**
@@ -368,9 +368,9 @@ typedef struct tmx_tileset_tile {
 typedef struct tmx_tileset {
     uint32_t firstGid; /**< First Global ID (GID) of a tile in this tileset. */
     uint32_t lastGid; /**< Last Global ID (GID) of a tile in this tileset. */
-    char* source; /**< (Optional) source of this tileset, may be NULL. Only used for external tilesets. */
+    char* source; /**< [optional] Source of this tileset, may be NULL. Only used for external tilesets. */
     char* name; /**< Name of the tileset. */
-    char* classString; /**< (Optional) class of the tileset. If unused, defaults to an empty string. */
+    char* classString; /**< [optional] Class of the tileset. If unused, defaults to an empty string. */
     uint32_t tileWidth; /**< Maximum, although typically exact, width of the tiles in this tileset in pixels. */
     uint32_t tileHeight; /**< Maximum, although typically exact, height of the tiles in this tileset in pixels. */
     uint32_t spacing; /**< Spacing in pixels between tiles in this tileset. */
@@ -380,7 +380,7 @@ typedef struct tmx_tileset {
     TmxObjectAlignment objectAlignment; /**< Controls the alignment of tiles of this tileset when used as objects. */
     int32_t tileOffsetX; /**< Horizontal offset in pixels applied when drawing tiles from this tileset. */
     int32_t tileOffsetY; /**< Vertical offset in pixels applied when drawing tiles form this tileset. */
-    TmxImage image; /**< (Optional) image from which this tilesets tiles are extracted. */
+    TmxImage image; /**< [optional] Image from which this tilesets tiles are extracted. */
     bool hasImage;  /**< When true, indicates 'image' is set. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this tileset. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
@@ -396,11 +396,11 @@ typedef struct tmx_tile {
     Rectangle sourceRect; /**< Sub-rectangle within a tileset to extract that is to be drawn. */
     Texture2D texture; /**< Texture in VRAM to be used to draw. May be used whole or as a source of a sub-rectangle. */
     Vector2 offset; /**< Offset in pixels to be applied to the tile, derived from the tileset. */
-    TmxAnimation animation; /**< (Optional) animation. Lists GIDs to be drawn temporarily and periodically. */
+    TmxAnimation animation; /**< [optional] Animation. Lists GIDs to be drawn temporarily and periodically. */
     bool hasAnimation; /**< When true, indicates 'animation' is assigned. */
     uint32_t frameIndex; /**< For animations, the current animation frame to draw. */
     float frameTime; /**< For animations, an accumulator. The time, in seconds, the current frame has been drawn. */
-    TmxObjectGroup objectGroup; /**< (Optional) 0+ objects representing collision information unique to the tile. */
+    TmxObjectGroup objectGroup; /**< [optional] 0+ objects representing collision information unique to the tile. */
 } TmxTile;
 
 /**
@@ -416,7 +416,7 @@ typedef struct tmx_map {
     uint32_t tileHeight; /**< Height of a tile in pixels. */
     int32_t parallaxOriginX; /**< X coordinate, in pixels, of the parallax origin. */
     int32_t parallaxOriginY; /**< Y coordinate, in pixels, of hte parallax origin. */
-    Color backgroundColor; /**< (Optional) background color to be drawn behind the map with its dimensions. */
+    Color backgroundColor; /**< [optional] Background color to be drawn behind the map with its dimensions. */
     bool hasBackgroundColor; /**< When true, indicates 'backgroundColor' is set. */
     TmxProperty* properties; /**< Array of named, typed properties that apply to this map. */
     uint32_t propertiesLength; /**< Length of the 'properties' array. */
@@ -455,12 +455,14 @@ RAYTMX_DEC void UnloadTMX(TmxMap* map);
  * tint is needed, passing WHITE effectively means no tint is applied.
  *
  * @param map A loaded map model to be drawn in whole at the given coordinates.
- * @param camera (Optional) camera to be used for parallax and occlusion.
+ * @param camera [optional] Camera2D to be used for parallax and occlusion. 'viewport' takes priority for occlusion.
+ * @param viewport [optional] Region drawn to. Used for occlusion. Only tiles, objects, etc. in this region are drawn.
  * @param posX X coordinate at which to draw the map. This corresponds to the top-left corner of the map.
  * @param posY Y coordinate at which to draw the map. This corresponds to the top-left corner of the map.
  * @param tint A tint to be applied to the map and its layers. This tint is combined with any individual layer tints.
  */
-RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, int posX, int posY, Color tint);
+RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, int posX, int posY,
+    Color tint);
 
 /**
  * Draw the given layers at the given position.
@@ -471,15 +473,16 @@ RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, int posX, int
  * needed, passing WHITE effectively means no tint is applied.
  *
  * @param map A loaded map model to be drawn in part at the given coordinates.
- * @param camera (Optional) camera to be used for parallax and occlusion.
+ * @param camera [optional] Camera2D to be used for parallax and occlusion. 'viewport' takes priority for occlusion.
+ * @param viewport [optional] Region drawn to. Used for occlusion. Only tiles, objects, etc. in this region are drawn.
  * @param layers An array of select layers to be drawn.
  * @param layersLength Length of the given array of layers.
  * @param posX X coordinate at which to draw the layers. This corresponds to the top-left corner of the layers.
  * @param posY Y coordinate at which to draw the layers. This corresponds to the top-left corner of the layers.
  * @param tint A tint to be applied to the layers. This tint is combined with any individual layer tints.
  */
-RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const TmxLayer* layers, uint32_t layersLength,
-    int posX, int posY, Color tint);
+RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport,
+    const TmxLayer* layers, uint32_t layersLength, int posX, int posY, Color tint);
 
 /**
  * Progress the animations of the given map in real-time. This is intended to be called once per frame, or once per
@@ -844,14 +847,14 @@ void FreeTileset(TmxTileset tileset);
 void FreeProperty(TmxProperty property);
 void FreeLayer(TmxLayer layer);
 void FreeObject(TmxObject object);
-bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle screenRect, uint32_t* rawGid,
-    TmxTile* tile, Rectangle* tileRect);
-void DrawTMXTileLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
-void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, Color tint);
-void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, float width,
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, uint32_t* rawGid, TmxTile* tile,
+    Rectangle* tileRect);
+void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint);
+void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, Color tint);
+void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, float width,
     float height, Color tint);
-void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
-void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint);
+void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint);
+void DrawTMXImageLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint);
 bool CheckCollisionTMXTileLayerObject(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
     TmxObject object, TmxObject* outputObject);
 bool CheckCollisionTMXObjectGroupObject(TmxObjectGroup group, TmxObject object, TmxObject* outputObject);
@@ -1081,20 +1084,30 @@ RAYTMX_DEC void UnloadTMX(TmxMap* map) {
     MemFree(map);
 }
 
-RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, int posX, int posY, Color tint) {
+RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, int posX, int posY,
+        Color tint) {
     if (map == NULL)
         return;
 
     if (map->hasBackgroundColor) {
-        DrawRectangle(/* posX: */ posX, /* posY: */ posY, /* width: */ map->width, /*height: */ map->height,
-            /* color: */ map->backgroundColor);
+        Rectangle backgroundRect;
+        if (viewport != NULL)
+            backgroundRect = *viewport;
+        else {
+            backgroundRect.x = (float)posX;
+            backgroundRect.y = (float)posY;
+            backgroundRect.width = (float)(map->width * map->tileWidth);
+            backgroundRect.height = (float)(map->height * map->tileHeight);
+        }
+
+        DrawRectangleRec(/* rec: */ backgroundRect, /* color: */ map->backgroundColor);
     }
 
-    DrawTMXLayers(map, camera, map->layers, map->layersLength, posX, posY, tint);
+    DrawTMXLayers(map, camera, viewport, map->layers, map->layersLength, posX, posY, tint);
 }
 
-RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const TmxLayer* layers, uint32_t layersLength,
-        int posX, int posY, Color tint) {
+RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport,
+        const TmxLayer* layers, uint32_t layersLength, int posX, int posY, Color tint) {
     if (map == NULL || layers == NULL || layersLength == 0)
         return;
 
@@ -1109,17 +1122,22 @@ RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const T
         if (layer.hasTintColor)
             layerTint = ColorTint(layerTint, layer.tintColor);
 
-        Rectangle screenRect;
-        if (camera != NULL) {
-            screenRect.width = GetScreenWidth() / camera->zoom;
-            screenRect.height = GetScreenHeight() / camera->zoom;
-            screenRect.x = camera->target.x - (screenRect.width / 2.0f);
-            screenRect.y = camera->target.y - (screenRect.height / 2.0f);
+        /* Determine the viewport. This will depend on a couple parameters. If 'viewport' was assigned, it's used */
+        /* directly. If 'camera' was assigned, its target and zoom are used to derive a reasonable viewport from the */
+        /* screen's dimensions. If neither is assigned, the map's bounds are used. */
+        Rectangle viewport2;
+        if (viewport != NULL)
+            viewport2 = *viewport;
+        else if (camera != NULL) {
+            viewport2.width = (float)GetScreenWidth() / camera->zoom;
+            viewport2.height = (float)GetScreenHeight() / camera->zoom;
+            viewport2.x = camera->target.x - (viewport2.width / 2.0f);
+            viewport2.y = camera->target.y - (viewport2.height / 2.0f);
         } else {
-            screenRect.x = 0.0f;
-            screenRect.y = 0.0f;
-            screenRect.width = (float)GetScreenWidth();
-            screenRect.height = (float)GetScreenHeight();
+            viewport2.x = (float)posX;
+            viewport2.y = (float)posY;
+            viewport2.width = (float)(map->width * map->tileWidth);
+            viewport2.height = (float)(map->height * map->tileHeight);
         }
 
         int32_t parallaxOffsetX = 0, parallaxOffsetY = 0;
@@ -1130,20 +1148,20 @@ RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const T
 
         switch (layer.type) {
         case LAYER_TYPE_TILE_LAYER:
-            DrawTMXTileLayer(map, screenRect, layer, posX + layer.offsetX + parallaxOffsetX,
+            DrawTMXTileLayer(map, viewport2, layer, posX + layer.offsetX + parallaxOffsetX,
                 posY + layer.offsetY + parallaxOffsetY, layerTint);
             break;
         case LAYER_TYPE_OBJECT_GROUP:
-            DrawTMXObjectGroup(map, screenRect, layer, posX + layer.offsetX + parallaxOffsetX,
+            DrawTMXObjectGroup(map, viewport2, layer, posX + layer.offsetX + parallaxOffsetX,
                 posY + layer.offsetY + parallaxOffsetY, layerTint);
             break;
         case LAYER_TYPE_IMAGE_LAYER:
-            DrawTMXImageLayer(map, screenRect, layer, posX + layer.offsetX + parallaxOffsetX,
+            DrawTMXImageLayer(map, viewport2, layer, posX + layer.offsetX + parallaxOffsetX,
                 posY + layer.offsetY + parallaxOffsetY, layerTint);
         break;
         case LAYER_TYPE_GROUP:
-            DrawTMXLayers(map, camera, layer.layers, layer.layersLength, posX + layer.offsetX + parallaxOffsetX,
-                posY + layer.offsetY + parallaxOffsetY, layerTint);
+            DrawTMXLayers(map, camera, &viewport2, layer.layers, layer.layersLength,
+                posX + layer.offsetX + parallaxOffsetX, posY + layer.offsetY + parallaxOffsetY, layerTint);
             break;
         }
     }
@@ -3249,20 +3267,20 @@ int Clampi(int value, int minimum, int maximum) {
 
 /**
  * Scary-looking helper function that does something kind of simple: iterates through the tiles of the given tile layer
- * overlapping with the given screen rectangle, one tile per call. This function returns true while iteration is still
- * ongoing and false when done. This allows the function to be used e.g. "while (IterateTileLayer( { ...} ))". Details
- * of the current tile are returned to the caller with output parameters. Iteration is done row-by-row.
+ * overlapping with the given viewport, one tile per call. This function returns true while iteration is still ongoing
+ * and false when done. This allows the function to be used e.g. "while (IterateTileLayer( { ...} ))". Details of the
+ * current tile are returned to the caller with output parameters. Iteration is done row-by-row.
  *
  * @param map A loaded map model containing the given tile layer.
  * @param layer The tile layer within the given map whose tiles will be iterated.
- * @param screenRect A rectangle representing the screen. This could also be considered a search area.
+ * @param viewport A rectangle representing the region being drawn to. This could also be considered a search area.
  * @param rawGid Optional output. The Global ID (GID) with possible flip flags. Pass NULL if not wanted.
  * @param tile Optional output. Metadata of the current tile. Pass NULL if not wanted.
  * @param tileRect Optional output. The destination rectangle, in pixels, of the current tile. Pass NULL if not wanted.
  * @return True if the next tile is being provided via the output parameters, or false if iteration is done.
  */
-bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle screenRect, uint32_t* rawGid,
-        TmxTile* tile, Rectangle* tileRect) {
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, uint32_t* rawGid, TmxTile* tile,
+        Rectangle* tileRect) {
     /* Static variables whose values will persist between calls. These are needed to initialize and iterate. */
     static const TmxTileLayer* currentLayer = NULL; /* Tile layer being iterated */
     static int fromX = 0; /* Initial X position, tile not pixel, that row-by-row iteration begins at */
@@ -3282,31 +3300,31 @@ bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle sc
         case RENDER_ORDER_RIGHT_DOWN:
             /* Start at the top-left, iterate right, then iterate down, ending at the bottom-right. */
             /* In other words, this is the order in which English is read. */
-            fromX = (int)screenRect.x / (int)map->tileWidth;
-            fromY = (int)screenRect.y / (int)map->tileHeight;
-            toX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
-            toY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
+            fromX = (int)viewport.x / (int)map->tileWidth;
+            fromY = (int)viewport.y / (int)map->tileHeight;
+            toX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
+            toY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
         break;
         case RENDER_ORDER_RIGHT_UP:
             /* Start at the bottom-left, iterate right, then iterate up, ending at the top-right */
-            fromX = (int)screenRect.x / (int)map->tileWidth;
-            fromY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
-            toX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
-            toY = (int)screenRect.y / (int)map->tileHeight;
+            fromX = (int)viewport.x / (int)map->tileWidth;
+            fromY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
+            toX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
+            toY = (int)viewport.y / (int)map->tileHeight;
         break;
         case RENDER_ORDER_LEFT_DOWN:
             /* Start at the top-right, iterate left, then iterate down, ending at the bottom-left */
-            fromX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
-            fromY = (int)screenRect.y / (int)map->tileHeight;
-            toX = (int)screenRect.x / (int)map->tileWidth;
-            toY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
+            fromX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
+            fromY = (int)viewport.y / (int)map->tileHeight;
+            toX = (int)viewport.x / (int)map->tileWidth;
+            toY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
         break;
         case RENDER_ORDER_LEFT_UP:
             /* Start at the bottom-right, iterate left, then iterate up, ending at the top-left */
-            fromX = (int)(screenRect.x + screenRect.width) / (int)map->tileWidth;
-            fromY = (int)(screenRect.y + screenRect.height) / (int)map->tileHeight;
-            toX = (int)screenRect.x / (int)map->tileWidth;
-            toY = (int)screenRect.y / (int)map->tileHeight;
+            fromX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
+            fromY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
+            toX = (int)viewport.x / (int)map->tileWidth;
+            toY = (int)viewport.y / (int)map->tileHeight;
         break;
         } /* switch (map->renderOrder) */
         /* Restrain the the tile positions to those within the map in case of rounding mistakes */
@@ -3367,16 +3385,16 @@ bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle sc
     return true;
 }
 
-void DrawTMXTileLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_TILE_LAYER || layer.exact.tileLayer.tilesLength == 0)
         return;
 
     /* Iterate through each tile that the screen rectangle overlaps with */
     uint32_t rawGid;
     Rectangle tileRect;
-    while (IterateTileLayer(/* map: */ map, /* layer: */ &layer.exact.tileLayer, /* screenRect: */ screenRect,
+    while (IterateTileLayer(/* map: */ map, /* layer: */ &layer.exact.tileLayer, /* viewport: */ viewport,
             /* rawGid: */ &rawGid, /* tile: */ NULL, /* tileRect: */ &tileRect)) {
-        DrawTMXLayerTile(/* map: */ map, /* screenRect: */ screenRect, /* rawGid: */ rawGid,
+        DrawTMXLayerTile(/* map: */ map, /* viewport: */ viewport, /* rawGid: */ rawGid,
                          /* posX: */ posX + (int)tileRect.x, /* posY: */ posY + (int)tileRect.y, /* tint: */ tint);
     }
 }
@@ -3478,7 +3496,7 @@ void DrawTextureTile(Texture2D texture, Rectangle source, Rectangle dest, bool f
     rlSetTexture(0);
 }
 
-void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, Color tint) {
+void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, Color tint) {
     if (map == NULL || tint.a == 0)
         return;
 
@@ -3513,15 +3531,15 @@ void DrawTMXLayerTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, 
     destRect.width = tile.sourceRect.width;
     destRect.height = tile.sourceRect.height;
 
-    /* If the screen and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
-    if (CheckCollisionRecs(screenRect, destRect)) {
+    /* If the viewport and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
+    if (CheckCollisionRecs(viewport, destRect)) {
         DrawTextureTile(/* texture: */ tile.texture, /* source: */ tile.sourceRect, /* dest: */ destRect,
             /* flipX: */ isFlippedHorizontally, /* flipY: */ isFlippedVertically, /* flipDiag: */ isFlippedDiagonally,
             /* tint: */ tint);
     }
 }
 
-void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid, int posX, int posY, float width,
+void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, float width,
         float height, Color tint) {
     if (map == NULL || width <= 0 || height <= 0 || tint.a == 0)
         return;
@@ -3555,15 +3573,15 @@ void DrawTMXObjectTile(const TmxMap* map, Rectangle screenRect, uint32_t rawGid,
     destRect.width = width;
     destRect.height = height;
 
-    /* If the screen and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
-    if (CheckCollisionRecs(screenRect, destRect)) {
+    /* If the viewport and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
+    if (CheckCollisionRecs(viewport, destRect)) {
         DrawTextureTile(/* texture: */ tile.texture, /* source: */ tile.sourceRect, /* dest: */ destRect,
             /* flipX: */ isFlippedHorizontally, /* flipY: */ isFlippedVertically, /* flipDiag: */ isFlippedDiagonally,
             /* tint: */ tint);
     }
 }
 
-void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_OBJECT_GROUP || tint.a == 0)
         return;
 
@@ -3578,15 +3596,15 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer,
 
         if (object.type == OBJECT_TYPE_TILE) { /* If the object is a tile with an abitrary GID and dimensions */
             /* Note: This draw method handles occlusion culling so it doesn't need to be done here */
-            DrawTMXObjectTile(map, /* screenRect: */ screenRect, /* rawGid: */ object.gid,
+            DrawTMXObjectTile(map, /* viewport: */ viewport, /* rawGid: */ object.gid,
                 /* posX: */ posX + (int)object.x, /* posY: */ posY + (int)object.y, /* width: */ (float)object.width,
                 /* height: */ (float)object.height, /* color: */ tint);
         } else { /* If the object is any type other than a tile */
             Rectangle offsetAabb = object.aabb;
             offsetAabb.x += posX;
             offsetAabb.y += posY;
-            /* If the screen rectangle and the polygon's AABB are overlapping to any degree (i.e. it is visible) */
-            if (CheckCollisionRecs(screenRect, offsetAabb)) {
+            /* If the viewport and the polygon's AABB are overlapping to any degree (i.e. it is visible) */
+            if (CheckCollisionRecs(viewport, offsetAabb)) {
                 switch (object.type) {
                 case OBJECT_TYPE_RECTANGLE:
                     DrawRectangle(/* posX: */ posX + (int)object.x, /* posY: */ posY + (int)object.y,
@@ -3652,7 +3670,7 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle screenRect, TmxLayer layer,
     }
 }
 
-void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXImageLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_IMAGE_LAYER || !layer.exact.imageLayer.hasImage ||
             layer.exact.imageLayer.image.width == 0 || layer.exact.imageLayer.image.height == 0 || tint.a == 0)
         return;
@@ -3665,13 +3683,13 @@ void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, 
     imageRect.width = (float)imageLayer.image.width;
     imageRect.height = (float)imageLayer.image.height;
 
-    if (!imageLayer.repeatX && !imageLayer.repeatY && CheckCollisionRecs(screenRect, imageRect)) /* If visible */
+    if (!imageLayer.repeatX && !imageLayer.repeatY && CheckCollisionRecs(viewport, imageRect)) /* If visible */
         DrawTexture(/* texture: */ imageLayer.image.texture, /* posX: */ posX, /* posY: */ posY, /* tint: */ tint);
     else if (imageLayer.repeatX || imageLayer.repeatY) { /* If the image might be drawn across a whole axis, or both */
         /* Use integer division to determine the X and Y positions at which a the image would appear if it were */
         /* repeated across the whole axis (i.e. if "Repeat X" and/or "Repeat Y" are enabled) */
-        int coefficientX = (int)(screenRect.x - imageRect.x) / (int)imageRect.width;
-        int coefficientY = (int)(screenRect.y - imageRect.y) / (int)imageRect.height;
+        int coefficientX = (int)(viewport.x - imageRect.x) / (int)imageRect.width;
+        int coefficientY = (int)(viewport.y - imageRect.y) / (int)imageRect.height;
         float x0 = imageRect.x + (imageRect.width * (float)coefficientX); /* Initial X position */
         float y0 = imageRect.y + (imageRect.height * (float)coefficientY); /* Initial Y position */
 
@@ -3679,9 +3697,9 @@ void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, 
             imageRect.x = x0; /* Move the image's representative rectangle to that X */
         if (imageLayer.repeatY)
             imageRect.y = y0;
-        if (CheckCollisionRecs(screenRect, imageRect)) { /* If the repeating image would be visible in the screen */
+        if (CheckCollisionRecs(viewport, imageRect)) { /* If the repeating image would be visible in the viewport */
             /* Take a step back on each axis that the image repeats on. This ensures we don't leave any empty space */
-            /* along the left and/or top edge of the screen. */
+            /* along the left and/or top edge of the viewport. */
             if (imageLayer.repeatX)
                 x0 -= imageRect.width;
             if (imageLayer.repeatY)
@@ -3699,8 +3717,8 @@ void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, 
 
             if (imageLayer.repeatX && imageLayer.repeatY) { /* If repeating on both axes */
                 /* Loop over both the X and Y axes to draw an array of repeated images */
-                for (float x = x0; x <= screenRect.x + screenRect.width; x += imageRect.width) {
-                    for (float y = y0; y <= screenRect.y + screenRect.height; y += imageRect.height) {
+                for (float x = x0; x <= viewport.x + viewport.width; x += imageRect.width) {
+                    for (float y = y0; y <= viewport.y + viewport.height; y += imageRect.height) {
                         imageRect.x = x;
                         imageRect.y = y;
                         DrawTexturePro(/* texture: */ imageLayer.image.texture, /* source: */ sourceRect,
@@ -3709,14 +3727,14 @@ void DrawTMXImageLayer(const TmxMap* map, Rectangle screenRect, TmxLayer layer, 
                 }
             } else if (imageLayer.repeatX) { /* If repeating on just the X axis */
                 /* Loop over just the X axis to draw a horizontal line of repeated images */
-                for (float x = x0; x <= screenRect.x + screenRect.width; x += imageRect.width) {
+                for (float x = x0; x <= viewport.x + viewport.width; x += imageRect.width) {
                     imageRect.x = x;
                     DrawTexturePro(/* texture: */ imageLayer.image.texture, /* source: */ sourceRect,
                         /* dest: */ imageRect, /* origin: */ origin, /* rotation: */ 0.0f, /* tint: */ tint);
                 }
             } else if (imageLayer.repeatY) { /* If repeating on just the Y axis */
                 /* Loop over just the Y axis to draw a vertical line of repeated images */
-                for (float y = y0; y <= screenRect.y + screenRect.height; y += imageRect.height) {
+                for (float y = y0; y <= viewport.y + viewport.height; y += imageRect.height) {
                     imageRect.y = y;
                     DrawTexturePro(/* texture: */ imageLayer.image.texture, /* source: */ sourceRect,
                         /* dest: */ imageRect, /* origin: */ origin, /* rotation: */ 0.0f, /* tint: */ tint);
@@ -3950,7 +3968,7 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap* map, const TmxLayer* layers,
             TmxTile tile;
             Rectangle tileRect;
             while (IterateTileLayer(/* map: */ map, /* layer: */ &layers[i].exact.tileLayer,
-                    /* screenRect: */ object.aabb, /* rawGid: */ NULL, /* tile: */ &tile, /* tileRect: */ &tileRect)) {
+                    /* viewport: */ object.aabb, /* rawGid: */ NULL, /* tile: */ &tile, /* tileRect: */ &tileRect)) {
                 /* Iterate through each object associated with the tile */
                 for (uint32_t j = 0; j < tile.objectGroup.objectsLength; j++) {
                     /* This object, the tile's collision information, has a relative position so this object must be */
