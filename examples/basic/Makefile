@@ -33,9 +33,9 @@ endif
 #-----------------------------------------------------------------------------------------------------------------------
 # *.exe for Windows, extensionless for everything else
 ifeq ($(PLATFORM_OS),WINDOWS)
-	EXE = raytmx-example.exe
+	EXE = basic.exe
 else
-	EXE = raytmx-example
+	EXE = basic
 endif
 
 # Define default C compiler: CC
@@ -73,8 +73,8 @@ endif
 INCLUDE_PATHS = -I$(RAYLIB_PATH)/src \
 				-I$(RAYLIB_PATH)/src/external \
 				-I$(RAYLIB_PATH)/src/extras \
-				-I../external \
-				-I..
+				-I../../external \
+				-I../..
 
 # Define library paths containing required libs: LDFLAGS
 #-----------------------------------------------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ endif
 
 # Define source files and the object files to build from them
 #-----------------------------------------------------------------------------------------------------------------------
-SRCS = raytmx-example.c
+SRCS = basic.c
 OBJS = $(SRCS:.c=.o)
 
 # Targets

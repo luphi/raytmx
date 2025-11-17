@@ -2,8 +2,11 @@
 
 Header-only raylib library for loading and drawing Tiled's TMX tilemap documents.
 
-![example/raytmx-example.gif](example/raytmx-example.gif)
+![examples/basic/basic.gif](examples/basic/basic.gif)
 
+![examples/collisions/collisions.gif](examples/collisions/collisions.gif)
+
+![examples/smooth_camera/smooth_camera.gif](examples/smooth_camera/smooth_camera.gif)
 
 ## Features
 
@@ -56,9 +59,9 @@ void UnloadTMX(TmxMap* map);
 
 Drawing also follows raylib's patterns.
 ```c
-void DrawTMX(const TmxMap* map, const Camera2D* camera, int posX, int posY, Color tint);
-void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const TmxLayer* layers, uint32_t layersLength, int posX,
-    int posY, Color tint);
+void DrawTMX(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, int posX, int posY, Color tint);
+void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, const TmxLayer* layers,
+    uint32_t layersLength, int posX, int posY, Color tint);
 ```
 
 Animating a TMX is done by calling a specific function once per frame.
@@ -89,7 +92,7 @@ bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2* points, i
 Although raytmx doesn't do anything that would be considered collision response, the objects collided with are provided
 as optional output variables, *outputObject*, to allow for it.
 
-An example program that uses all of the above features is included.
+Example programs that use all of the above features is included.
 
 A more minimal example program would look like:
 ```c
@@ -102,10 +105,6 @@ A more minimal example program would look like:
 #include "raytmx.h"
 
 int main(int argc, char **argv) {
-    /* This map makes use of many TMX features making it useful for demonstrations. It will be adjacent to the */
-    /* executable once built. */
-    const char* tmx = "maps/raytmx-example.tmx";
-
     /* Configure the window with a resolution and title. This example will also target 60 frames per second. */
     const int screenWidth = 1024, screenHeight = 768;
     const float panSpeed = 150.0f;
@@ -113,34 +112,28 @@ int main(int argc, char **argv) {
     SetTargetFPS(60);
 
     /* Load the map. If loading fails, NULL will be returned and details will be TraceLog()'d. */
-    TmxMap* map = LoadTMX(tmx);
+    TmxMap* map = LoadTMX("example.tmx");
     if (map == NULL) {
         TraceLog(LOG_ERROR, "Failed to load TMX \"%s\"", tmx);
+        CloseWindow();
         return EXIT_FAILURE;
     }
 
-    /* Create a camera for efficient panning and zooming. The initial target will be the center of the map. */
+    /* Create a camera. Cameras use matrices to efficiently look at select parts of the map/world. */
     Camera2D camera;
-    camera.zoom = 6.0f;
     camera.target.x = (float)(map->width * map->tileWidth) / 2.0f;
     camera.target.y = (float)(map->height * map->tileHeight) / 2.0f;
     camera.offset.x = (float)screenWidth / 2.0f;
     camera.offset.y = (float)screenHeight / 2.0f;
     camera.rotation = 0.0f;
+    camera.zoom = 6.0f;
 
     while (WindowShouldClose() == false) {
-        if (IsKeyDown(KEY_RIGHT))
-            camera.target.x += panSpeed * GetFrameTime();
-        if (IsKeyDown(KEY_LEFT))
-            camera.target.x -= panSpeed * GetFrameTime();
-        if (IsKeyDown(KEY_DOWN))
-            camera.target.y += panSpeed * GetFrameTime();
-        if (IsKeyDown(KEY_UP))
-            camera.target.y -= panSpeed * GetFrameTime();
-        if (IsKeyDown(KEY_KP_ADD))
-            camera.zoom += camera.zoom < 10.0f ? 0.25f : 0.0f;
-        if (IsKeyDown(KEY_KP_SUBTRACT))
-            camera.zoom -= camera.zoom > 1.0f ? 0.25f : 0.0f;
+        /* Pan the camera based on which arrow key, if any, is pressed. */
+        if (IsKeyDown(KEY_RIGHT)) camera.target.x += panSpeed * GetFrameTime();
+        if (IsKeyDown(KEY_LEFT))  camera.target.x -= panSpeed * GetFrameTime();
+        if (IsKeyDown(KEY_DOWN))  camera.target.y += panSpeed * GetFrameTime();
+        if (IsKeyDown(KEY_UP))    camera.target.y -= panSpeed * GetFrameTime();
 
         BeginDrawing();
         {
@@ -148,10 +141,9 @@ int main(int argc, char **argv) {
             BeginMode2D(camera);
             {
                 AnimateTMX(map);
-                DrawTMX(map, &camera, 0, 0, WHITE);
+                DrawTMX(map, NULL, NULL, 0, 0, WHITE);
             }
             EndMode2D();
-            DrawFPS(10, 10);
         }
         EndDrawing();
     }
@@ -167,4 +159,5 @@ int main(int argc, char **argv) {
 
 ## Dependency
 
-*raytmx* depends on [hoxml](https://github.com/luphi/hoxml) for XML parsing and raylib for its graphical, file system, and time utilities.
+*raytmx* depends on [hoxml](https://github.com/luphi/hoxml) for XML parsing and raylib for its graphical, file system, 
+and time utilities.

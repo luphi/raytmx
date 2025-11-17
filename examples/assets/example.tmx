@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.11" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="36" height="52" tilewidth="16" tileheight="16" infinite="0" parallaxoriginx="288" parallaxoriginy="416" nextlayerid="18" nextobjectid="39">
  <tileset firstgid="1" name="ruins" tilewidth="16" tileheight="16" tilecount="98" columns="7">
-  <image source="../tilesets/ruins.png" width="112" height="224"/>
+  <image source="tilesets/ruins.png" width="112" height="224"/>
   <tile id="14">
    <objectgroup draworder="index" id="2">
     <object id="1" x="0" y="0" width="16" height="16"/>
@@ -207,13 +207,13 @@
   </tile>
  </tileset>
  <tileset firstgid="99" name="grass" tilewidth="16" tileheight="16" tilecount="40" columns="4">
-  <image source="../tilesets/grass.png" width="64" height="160"/>
+  <image source="tilesets/grass.png" width="64" height="160"/>
  </tileset>
  <tileset firstgid="139" name="fade" tilewidth="16" tileheight="16" tilecount="6" columns="2">
-  <image source="../tilesets/fade.png" width="32" height="48"/>
+  <image source="tilesets/fade.png" width="32" height="48"/>
  </tileset>
- <tileset firstgid="145" source="../tilesets/shadows.tsx"/>
- <tileset firstgid="161" source="../tilesets/trees.tsx"/>
+ <tileset firstgid="145" source="tilesets/shadows.tsx"/>
+ <tileset firstgid="161" source="tilesets/trees.tsx"/>
  <objectgroup id="15" name="Text">
   <object id="12" x="336" y="576" width="48" height="17.875">
    <text fontfamily="Segoe UI" pixelsize="12" wrap="1" color="#55ffff">raytmx</text>

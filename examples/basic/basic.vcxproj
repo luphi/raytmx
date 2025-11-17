@@ -22,33 +22,33 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{b0459a2a-ae34-4b58-b106-1606073e9454}</ProjectGuid>
-    <RootNamespace>raytmxexample</RootNamespace>
+    <RootNamespace>raytmx</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -71,7 +71,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>D:\Code\raytmx;D:\Code\raytmx\external;$(IncludePath)</IncludePath>
+    <IncludePath>..\..;..\..\external;$(IncludePath)</IncludePath>
     <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
@@ -132,23 +132,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="raytmx-example.c" />
+    <ClCompile Include="basic.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\raytmx.h" />
+    <ClInclude Include="..\..\raytmx.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="tilesets\fade.png" />
-    <Image Include="tilesets\grass.png" />
-    <Image Include="tilesets\ruins.png" />
-    <Image Include="tilesets\shadows.png" />
-    <Image Include="tilesets\trees.png" />
+    <Image Include="..\assets\tilesets\fade.png" />
+    <Image Include="..\assets\tilesets\grass.png" />
+    <Image Include="..\assets\tilesets\ruins.png" />
+    <Image Include="..\assets\tilesets\shadows.png" />
+    <Image Include="..\assets\tilesets\trees.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="maps\door.tx" />
-    <None Include="maps\raytmx-example.tmx" />
-    <None Include="tilesets\shadows.tsx" />
-    <None Include="tilesets\trees.tsx" />
+    <None Include="..\assets\door.tx" />
+    <None Include="..\assets\example.tmx" />
+    <None Include="..\assets\tilesets\shadows.tsx" />
+    <None Include="..\assets\tilesets\trees.tsx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

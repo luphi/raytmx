@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="collisions.vcxproj" Id="b0459a2a-ae34-4b58-b106-1606073e9454" />
+</Solution>
