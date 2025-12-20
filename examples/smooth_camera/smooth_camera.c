@@ -37,8 +37,7 @@ int main(int argc, char **argv) {
     }
 
     /* Allocate a texture to draw the tilemap to each frame. */
-    const RenderTexture2D renderTexture = LoadRenderTexture(tmxWidthInTiles * tmxWidthOfTile,
-        tmxHeightInTiles * tmxHeightOfTile);
+    const RenderTexture2D renderTexture = LoadRenderTexture(mapWidthInPixels, mapHeightInPixels);
     Rectangle renderSourceRect; /* Region within the render texture to be drawn (the whole thing). */
     renderSourceRect.x = 0.0f;
     renderSourceRect.y = 0.0f;
@@ -106,7 +105,7 @@ int main(int argc, char **argv) {
             /* Progress the animated tiles. */
             AnimateTMX(map);
 
-            /* Draw the map to the render texture with the pixel precision camera. */
+            /* Draw the map to the render texture at its native resolution. */
             BeginTextureMode(renderTexture);
             {
                 /* Fill the render texture with a solid color different from the screen's. */
@@ -119,13 +118,13 @@ int main(int argc, char **argv) {
             /* Draw the render texture with the high-precision, smooth camera (if currently enabled). */
             if (useCamera)
                 BeginMode2D(camera);
-            {
-                DrawTexturePro(/* texture: */ renderTexture.texture, /* source: */ renderSourceRect,
-                    /* dest: */ (Rectangle) { 0.0, 0.0, (float)mapWidthInPixels, (float)mapHeightInPixels },
-                    /* origin: */ (Vector2) { 0.0f, 0.0f }, /* rotation: */ 0.0f, /* tint: */ WHITE);
 
-                DrawRectangleLinesEx(/* rec: */ viewport, /* lineThick: */ 2.0f, /* color: */ RED);
-            }
+            DrawTexturePro(/* texture: */ renderTexture.texture, /* source: */ renderSourceRect,
+                /* dest: */ (Rectangle) { 0.0, 0.0, (float)mapWidthInPixels, (float)mapHeightInPixels },
+                /* origin: */ (Vector2) { 0.0f, 0.0f }, /* rotation: */ 0.0f, /* tint: */ WHITE);
+
+            DrawRectangleLinesEx(/* rec: */ viewport, /* lineThick: */ 2.0f, /* color: */ RED);
+
             if (useCamera)
                 EndMode2D();
 

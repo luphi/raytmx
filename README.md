@@ -49,7 +49,7 @@ Define the implementation before including *raytmx*.
 #define RAYTMX_IMPLEMENTATION
 #include "raytmx.h"
 ```
-As usual with header-only libraries, the implementation's definition can be limited to just a single file. This will depend on your specific build configuration.
+Only do this in one file. In other source files, include the header without defining the implemntation.
 
 Loading and unloading follows raylib's patterns.
 ```c
@@ -92,7 +92,7 @@ bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2* points, i
 Although raytmx doesn't do anything that would be considered collision response, the objects collided with are provided
 as optional output variables, *outputObject*, to allow for it.
 
-Example programs that use all of the above features is included.
+Example programs that use all of the above features are included.
 
 A more minimal example program would look like:
 ```c
@@ -107,7 +107,7 @@ A more minimal example program would look like:
 int main(int argc, char **argv) {
     /* Configure the window with a resolution and title. This example will also target 60 frames per second. */
     const int screenWidth = 1024, screenHeight = 768;
-    const float panSpeed = 150.0f;
+    const float panSpeed = 150.0f; /* Pixels per second. */
     InitWindow(screenWidth, screenHeight, "raytmx example");
     SetTargetFPS(60);
 
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    /* Create a camera. Cameras use matrices to efficiently look at select parts of the map/world. */
+    /* Create a camera that initially looks at the center of the map. */
     Camera2D camera;
     camera.target.x = (float)(map->width * map->tileWidth) / 2.0f;
     camera.target.y = (float)(map->height * map->tileHeight) / 2.0f;
