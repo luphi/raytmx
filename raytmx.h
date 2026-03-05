@@ -847,8 +847,8 @@ void FreeTileset(TmxTileset tileset);
 void FreeProperty(TmxProperty property);
 void FreeLayer(TmxLayer layer);
 void FreeObject(TmxObject object);
-bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, uint32_t* rawGid, TmxTile* tile,
-    Rectangle* tileRect);
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, int posX, int posY,
+    uint32_t* rawGid, TmxTile* tile, Rectangle* tileRect);
 void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint);
 void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, Color tint);
 void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, float width,
@@ -3274,13 +3274,15 @@ int Clampi(int value, int minimum, int maximum) {
  * @param map A loaded map model containing the given tile layer.
  * @param layer The tile layer within the given map whose tiles will be iterated.
  * @param viewport A rectangle representing the region being drawn to. This could also be considered a search area.
+ * @param posX X coordinate at which the layer is being drawn. This corresponds to the top-left corner of the map.
+ * @param posY Y coordinate at which the layer is being drawn. This corresponds to the top-left corner of the map.
  * @param rawGid Optional output. The Global ID (GID) with possible flip flags. Pass NULL if not wanted.
  * @param tile Optional output. Metadata of the current tile. Pass NULL if not wanted.
  * @param tileRect Optional output. The destination rectangle, in pixels, of the current tile. Pass NULL if not wanted.
  * @return True if the next tile is being provided via the output parameters, or false if iteration is done.
  */
-bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, uint32_t* rawGid, TmxTile* tile,
-        Rectangle* tileRect) {
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, int posX, int posY,
+        uint32_t* rawGid, TmxTile* tile, Rectangle* tileRect) {
     /* Static variables whose values will persist between calls. These are needed to initialize and iterate. */
     static const TmxTileLayer* currentLayer = NULL; /* Tile layer being iterated */
     static int fromX = 0; /* Initial X position, tile not pixel, that row-by-row iteration begins at */
@@ -3296,35 +3298,45 @@ bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle vi
 
     if (currentLayer != layer) { /* If the layer has changed (i.e. iteration should initialize) */
         currentLayer = layer; /* Remember this layer */
+
+        /* Create an adjusted viewport that effectively removes the map's drawn position. With this, it doesn't need */
+        /* to be a factor in the math below. */
+        const Rectangle viewport2 = {
+            .x = viewport.x - (float)posX,
+            .y = viewport.y - (float)posY,
+            .width = viewport.width,
+            .height = viewport.height
+        };
+
         switch (map->renderOrder) {
         case RENDER_ORDER_RIGHT_DOWN:
             /* Start at the top-left, iterate right, then iterate down, ending at the bottom-right. */
             /* In other words, this is the order in which English is read. */
-            fromX = (int)viewport.x / (int)map->tileWidth;
-            fromY = (int)viewport.y / (int)map->tileHeight;
-            toX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
-            toY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
+            fromX = (int)viewport2.x / (int)map->tileWidth;
+            fromY = (int)viewport2.y / (int)map->tileHeight;
+            toX = (int)(viewport2.x + viewport2.width) / (int)map->tileWidth;
+            toY = (int)(viewport2.y + viewport2.height) / (int)map->tileHeight;
         break;
         case RENDER_ORDER_RIGHT_UP:
             /* Start at the bottom-left, iterate right, then iterate up, ending at the top-right */
-            fromX = (int)viewport.x / (int)map->tileWidth;
-            fromY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
-            toX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
-            toY = (int)viewport.y / (int)map->tileHeight;
+            fromX = (int)viewport2.x / (int)map->tileWidth;
+            fromY = (int)(viewport2.y + viewport2.height) / (int)map->tileHeight;
+            toX = (int)(viewport2.x + viewport2.width) / (int)map->tileWidth;
+            toY = (int)viewport2.y / (int)map->tileHeight;
         break;
         case RENDER_ORDER_LEFT_DOWN:
             /* Start at the top-right, iterate left, then iterate down, ending at the bottom-left */
-            fromX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
-            fromY = (int)viewport.y / (int)map->tileHeight;
-            toX = (int)viewport.x / (int)map->tileWidth;
-            toY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
+            fromX = (int)(viewport2.x + viewport2.width) / (int)map->tileWidth;
+            fromY = (int)viewport2.y / (int)map->tileHeight;
+            toX = (int)viewport2.x / (int)map->tileWidth;
+            toY = (int)(viewport2.y + viewport2.height) / (int)map->tileHeight;
         break;
         case RENDER_ORDER_LEFT_UP:
             /* Start at the bottom-right, iterate left, then iterate up, ending at the top-left */
-            fromX = (int)(viewport.x + viewport.width) / (int)map->tileWidth;
-            fromY = (int)(viewport.y + viewport.height) / (int)map->tileHeight;
-            toX = (int)viewport.x / (int)map->tileWidth;
-            toY = (int)viewport.y / (int)map->tileHeight;
+            fromX = (int)(viewport2.x + viewport2.width) / (int)map->tileWidth;
+            fromY = (int)(viewport2.y + viewport2.height) / (int)map->tileHeight;
+            toX = (int)viewport2.x / (int)map->tileWidth;
+            toY = (int)viewport2.y / (int)map->tileHeight;
         break;
         } /* switch (map->renderOrder) */
         /* Restrain the the tile positions to those within the map in case of rounding mistakes */
@@ -3393,7 +3405,7 @@ void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int
     uint32_t rawGid;
     Rectangle tileRect;
     while (IterateTileLayer(/* map: */ map, /* layer: */ &layer.exact.tileLayer, /* viewport: */ viewport,
-            /* rawGid: */ &rawGid, /* tile: */ NULL, /* tileRect: */ &tileRect)) {
+            /* posX: */ posX, /* posY: */ posY, /* rawGid: */ &rawGid, /* tile: */ NULL, /* tileRect: */ &tileRect)) {
         DrawTMXLayerTile(/* map: */ map, /* viewport: */ viewport, /* rawGid: */ rawGid,
                          /* posX: */ posX + (int)tileRect.x, /* posY: */ posY + (int)tileRect.y, /* tint: */ tint);
     }
@@ -3968,7 +3980,8 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap* map, const TmxLayer* layers,
             TmxTile tile;
             Rectangle tileRect;
             while (IterateTileLayer(/* map: */ map, /* layer: */ &layers[i].exact.tileLayer,
-                    /* viewport: */ object.aabb, /* rawGid: */ NULL, /* tile: */ &tile, /* tileRect: */ &tileRect)) {
+                    /* viewport: */ object.aabb, /* posX: */ 0, /* posY: */ 0, /* rawGid: */ NULL, /* tile: */ &tile,
+                    /* tileRect: */ &tileRect)) {
                 /* Iterate through each object associated with the tile */
                 for (uint32_t j = 0; j < tile.objectGroup.objectsLength; j++) {
                     /* This object, the tile's collision information, has a relative position so this object must be */
