@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.11" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="12" height="26" tilewidth="16" tileheight="16" infinite="0" parallaxoriginx="96" parallaxoriginy="208" nextlayerid="18" nextobjectid="39">
+<map version="1.11" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="44" tilewidth="16" tileheight="16" infinite="0" parallaxoriginx="240" parallaxoriginy="352" nextlayerid="22" nextobjectid="41">
  <tileset firstgid="1" name="ruins" tilewidth="16" tileheight="16" tilecount="98" columns="7">
   <image source="tilesets/ruins.png" width="112" height="224"/>
   <tile id="14">
@@ -215,80 +215,93 @@
  <tileset firstgid="145" source="tilesets/shadows.tsx"/>
  <tileset firstgid="161" source="tilesets/trees.tsx"/>
  <group id="5" name="Floors">
-  <layer id="10" name="Light grass" width="12" height="26">
+  <layer id="10" name="Light grass" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYCANpDMwHCAFJwP1jOJRTC4eBaOAEgAA+31FhQ==
+   eJztzcEJACAMBMHr1YdtpjRrCIhImIF9bwIwx06q063vaubr6+vr++YLAMD/Dqs+RYU=
   </data>
   </layer>
-  <layer id="9" name="Ruin tiles" width="12" height="26">
+  <layer id="9" name="Ruin tiles" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYBg4wM3AcIAZghlAmAXIxqeei4HhATNEH0gtGGMDQPEFXBAzD4D0EHIHM0ItUQDq1gVEKgepVWAm4DdkAHTHAmbSzH8A1KNArHpmqB0kmA9yjwOx6rkgcZpAgnqwmwYCMCJhYtRgw8SqG46Y3LCil3oA4L0Nmw==
+   eJztlMEJwCAMRVPSk13CUTpKR3OUjuIoTWpppQcvNhHKf/BBUHwkEYkAAABYshDtXEKaWdYe3kCUufjVecYSuT+JU2vc1W2su+HH6co1y+SsVWdkpzdUI/1NPKbeLO7o7dX5hjH1ap9Xb28of9Q2wHv2GnzHVKXnTI/3fXdrz8LbCrz/8loBr48XAABqDnprDZs=
   </data>
   </layer>
-  <layer id="7" name="Fades to black" width="12" height="26">
+  <layer id="7" name="Fades to black" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYBgFo2Dkgm7S1DYMZ/X9EPkEGO4hoB5kHhYxmqrvgYgnYMM9WNQDAIyKGTI=
+   eJzt0TEKwCAMQFGPmqN0b8ArVyhuUpBKB/seZDL4EUsBAAB2cM7tHrq6b7u1ddp59MmPuivf9/du3vfHaFb+J8CTC9NQGTI=
   </data>
   </layer>
-  <layer id="8" name="Ruin stairs" width="12" height="26">
+  <layer id="8" name="Ruin stairs" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYBgFo2BogXAgjqCi+kggjgLiaCgGqm0Ih7AbQBgo1wBU04BLH0w9LnWjYOAAACsFCvU=
+   eJztzdsJwCAUREG7NI9mbunZkFiCHzEzcEC4wrYGAAD/0dO28O6ejnS+ZbP686673Cp/avb+2J29BwB83wVKOgr1
   </data>
   </layer>
-  <layer id="12" name="Shadows 1" width="12" height="26">
+  <layer id="12" name="Shadows 1" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYKA9mAnEs/Dw0cFcIJ6HpA7GJwSIVUcqIORedHlC7sAlT8gedHXYzMFmBj734JOj1D249OOyk9j4m87AkECEMjiYhEf9ZAaGBZMgauB4GsKeBnQ5IF5Aot00VT+FdPUHJgLpGUC/IYsB7T0ApB2wuQcYRqCwgIM5SOGCTT0QKxDrHlLVkwoAK0Q3uQ==
+   eJztlNsJhDAQRaeULcVSLGVb8IGropJSLM0rriGIj5/MmI97YAgxkJPcDIoQQgiJQYfqb+ZajKgp8O1zK6x9b/H0nlrv/ZSvdv5WfXz0nd1L8yx3OVr0eCo5a5/jKkvr/8hPJDfUeUoDbyXiys3lq/mv4d7f41ossJeLuB29F9TveecCY4seCr8hhxljpuVdc0ZPr73rGYI+1vSiPoqKpLyEEJICC6aCN7k=
   </data>
   </layer>
-  <layer id="11" name="Shadows 2" width="12" height="26">
+  <layer id="11" name="Shadows 2" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYBiZYCYQzyJB/VwgnkcjtxAC1HArNf07lMJuFIxsAAAU0gm5
+   eJzt0cEJACAMA8Duv4GCzmqHEFrlDvJOSiMA4C0jMwt6V2YX9Hb04w863tRxEwAA3HYAPzwJuQ==
   </data>
   </layer>
+  <objectgroup color="#400000ff" id="20" name="Parallax reference quad" visible="0">
+   <object id="40" x="224" y="336" width="32" height="32"/>
+  </objectgroup>
  </group>
  <group id="4" name="Edges">
-  <layer id="1" name="Ruin ledges" width="12" height="26">
+  <layer id="1" name="Ruin ledges" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYCANaAOxDgnYiETzaaneeFT9gKu3BGIrNAwD6OLWQMyPBcMANjlS1Y+C4Q0ApgIJcQ==
+   eJztzbEJACAMBdFs4CBaaaXuv5dpbIKFQhrDPfiNAU8EAOLIuvIwL9Xxr2jdRpcuXbqq64bZZt+nYzcddnP7tQsAAPCjBVK0CXE=
   </data>
   </layer>
-  <layer id="6" name="Ruin walls" width="12" height="26">
+  <layer id="6" name="Ruin walls" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYBgFo2DwAgUS1aqToF59GJivCMSCQCyCJC4MFZOH0kJIajSAWAKIpZHUS0HF1KC0JJIafO7HJofP/djkYG4VgNLIbBEs6mFuFYfSyGxpLOoBM98Fbw==
+   eJzt0UsKgDAMBNAewR/4Wxg36v1PaBYphFIasOlG5kFIibORCQEAAAAA4J+oUdZyN8paqFHWgv/1yVpOnp5nUrdRbofsIZOp9fAsPLu6bXK7ZK+ZTC36+K1WqTPPPlOxy062fnv2mYpdzrL127NPAICSF84pBW8=
   </data>
   </layer>
  </group>
  <group id="3" name="Trees">
-  <layer id="14" name="Trees 1" width="12" height="26">
+  <layer id="14" name="Trees 1" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYGBg2A/EBxgQAJ2PDk4C8SkkdTA+LnAZiK8gqYPxCQFi1RFyL7o8Ifeiy8PcgcsedHfiCxdsZuALF2xm4HMPNjNwuQeXf3C5B1e44YonYuNvFIwCWgEAYwQz9A==
+   eJzt1DEOgDAIQNHe/1K66qoHEocmXaDTZ/ovYWAiBcoYksQ4Is4ip1wR91Jv5rQn4l3qzbxLd73dPKl57+ZJzXv2N3sX1f9qj8k/Ve0x+aeqPpM7nvWZvltZn+m7lfWy+45IkiRJvw8qFDP0
   </data>
   </layer>
-  <layer id="13" name="Trees 2" width="12" height="26">
+  <layer id="13" name="Trees 2" width="30" height="44">
    <data encoding="base64" compression="zlib">
-   eJxjYBicYD8QHyBB/UkgPkWC+stAfIUUB+EB1HArPjOwuRWff7GZhc+/Axl2o2AU0BIAAKv5EuU=
+   eJzt0rENwCAMBED2X4q00CYD4QncWRbRnfT16zFjAHC7GXkaeldkN/S+ka+hN/PHG2SbKm+Qbap852yTvw4AAHUO7RoS5Q==
   </data>
   </layer>
  </group>
+ <group id="18" name="Parallaxed" parallaxx="1.15" parallaxy="1.15">
+  <layer id="21" name="Fog" width="30" height="44" opacity="0.75">
+   <data encoding="base64" compression="zlib">
+   eJydl0tuwzAMRH1QNVZz/0M0iwgYTN6QTBcCLIni8E96Xde1X+v3tZ72/Xiv+32+Yb9lf96t1/oxWr/raB6wDt0PnOk7l28HXMUkuZWXy3RfnzJM9CXdFIN0UH+Qbh3uArokwx1ssYDWebqd6c26WM8FS/V3WpWtiyvfq52SHmR38nWF6z7ROCN6p02x1eE6np5NclTfTHCTvUgWXRR/FOeOO/WR8zo8kqydf/Ud0VcxmmyR8mmK6zqn2pZsQXk+xU08FJNqNfmBeCXfeI1JuZRkJlzKW4oVoq/0UZtMcanX6P22+67mnL2eH/08djbQpbh13Bt4Om4Xd109Imx91/VB8pXL4T0o1eRK3ml9pnrhPlCeeu65r3y6eccxujwmf5wzfee4Lu+2lfpDslkXT87XeXj/cHq36RS3mh1Tzk9zoMLt8nc6j9Ndh9vNMF6bu9lxYm/CVbkJp/ovUN4kRzUzENZZXU2jvOxwPS8qu9N8/E18OU+1NemdZtwUI1Xsew2u6nNF63Lp/nxrTZ32FLcx9WHCcjt3uMdOpFv6prlN5fH7bnZw7GrWorqhuG7Tb2oh5XBVr8i2ZK8003ovIx/QXEe4Km+aayn+U21R/Elf2NdnrKrO1TybZDiLag7VecL13NH76j9Ucf1N9c+Q5j+PA4oBpXd7pXrzhPNqTqCe4LXhv7081afkA98v4NHhJt9WPdDr6x/euum/
+  </data>
+  </layer>
+  <objectgroup color="#40ff0000" id="19" name="Parallax reference quad" visible="0">
+   <object id="39" x="224" y="336" width="32" height="32"/>
+  </objectgroup>
+ </group>
  <objectgroup id="15" name="Text">
-  <object id="12" x="144" y="368" width="48" height="17.875">
+  <object id="12" x="288" y="512" width="48" height="17.875">
    <text fontfamily="Segoe UI" pixelsize="12" wrap="1" color="#55ffff">raytmx</text>
   </object>
  </objectgroup>
  <objectgroup color="#400000ff" id="16" name="Doors" visible="0">
-  <object id="15" template="door.tx" x="176" y="32">
+  <object id="15" template="door.tx" x="320" y="176">
    <properties>
     <property name="direction" value="west"/>
     <property name="name" value="garden upper"/>
     <property name="to" value="spawn"/>
    </properties>
   </object>
-  <object id="18" template="door.tx" x="96" y="368">
+  <object id="18" template="door.tx" x="240" y="512">
    <properties>
     <property name="one-off" value="This property exists solely to create a property not from the template, forcing a merge"/>
    </properties>
   </object>
-  <object id="24" template="door.tx" x="176" y="48">
+  <object id="24" template="door.tx" x="320" y="192">
    <properties>
     <property name="direction" value="west"/>
     <property name="name" value="garden lower"/>
@@ -304,28 +317,28 @@
    <property name="int property" type="int" value="64"/>
    <property name="string property" value="string value"/>
   </properties>
-  <object id="1" x="16" y="16" width="48" height="16"/>
-  <object id="2" x="64" y="16" width="128" height="8"/>
-  <object id="3" x="0" y="16" width="16" height="400"/>
-  <object id="4" x="16" y="384" width="112" height="32"/>
-  <object id="7" x="16" y="216" width="64" height="40"/>
-  <object id="8" x="112" y="216" width="64" height="40"/>
-  <object id="9" x="176" y="64" width="16" height="288"/>
-  <object id="11" x="112" y="352" width="16" height="32"/>
-  <object id="25" x="80" y="24" width="32" height="24"/>
-  <object id="26" x="16" y="32" width="64" height="32"/>
-  <object id="27" x="16" y="64" width="48" height="32"/>
-  <object id="28" x="16" y="96" width="64" height="96"/>
-  <object id="29" x="16" y="192" width="32" height="16"/>
-  <object id="30" x="144" y="64" width="32" height="144"/>
-  <object id="31" x="128" y="112" width="16" height="48"/>
-  <object id="32" x="112" y="160" width="32" height="48"/>
-  <object id="35" x="45" y="320">
+  <object id="1" x="160" y="160" width="48" height="16"/>
+  <object id="2" x="208" y="160" width="128" height="8"/>
+  <object id="3" x="144" y="160" width="16" height="400"/>
+  <object id="4" x="160" y="528" width="112" height="32"/>
+  <object id="7" x="160" y="360" width="64" height="40"/>
+  <object id="8" x="256" y="360" width="64" height="40"/>
+  <object id="9" x="320" y="208" width="16" height="288"/>
+  <object id="11" x="256" y="496" width="16" height="32"/>
+  <object id="25" x="224" y="168" width="32" height="24"/>
+  <object id="26" x="160" y="176" width="64" height="32"/>
+  <object id="27" x="160" y="208" width="48" height="32"/>
+  <object id="28" x="160" y="240" width="64" height="96"/>
+  <object id="29" x="160" y="336" width="32" height="16"/>
+  <object id="30" x="288" y="208" width="32" height="144"/>
+  <object id="31" x="272" y="256" width="16" height="48"/>
+  <object id="32" x="256" y="304" width="32" height="48"/>
+  <object id="35" x="189" y="464">
    <polygon points="0,0 -29,0 -29,32 0,32"/>
   </object>
-  <object id="36" x="83" y="320">
+  <object id="36" x="227" y="464">
    <polygon points="0,0 0,32 93,32 93,0"/>
   </object>
-  <object id="38" x="64" y="24" width="16" height="8"/>
+  <object id="38" x="208" y="168" width="16" height="8"/>
  </objectgroup>
 </map>

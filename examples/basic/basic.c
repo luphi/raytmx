@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
                 /* Progress the animated tiles. */
                 AnimateTMX(map);
                 /* Draw the whole map (because no camera nor viewport is passed). */
-                DrawTMX(map, NULL, NULL, 0, 0, WHITE);
+                DrawTMX(map, &camera, NULL, 0, 0, WHITE);
             }
             EndMode2D();
             DrawFPS(10, 10);

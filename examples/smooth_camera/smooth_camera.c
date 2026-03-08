@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
         if (IsKeyDown(KEY_KP_ADD) || (IsKeyDown(KEY_KP_SUBTRACT))) {
             /* Zoom in or out if the + or - key is pressed, respectively. */
             if (IsKeyDown(KEY_KP_ADD))      camera.zoom += camera.zoom < 10.0f ? 0.25f : 0.0f;
-            if (IsKeyDown(KEY_KP_SUBTRACT)) camera.zoom -= camera.zoom > 1.0f ? 0.25f : 0.0f;
+            if (IsKeyDown(KEY_KP_SUBTRACT)) camera.zoom -= camera.zoom > 1.0f  ? 0.25f : 0.0f;
             viewport = GetCameraViewport(camera, (float)mapWidthInPixels, (float)mapHeightInPixels);
         }
 
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
                 /* Fill the render texture with a solid color different from the screen's. */
                 ClearBackground(BLACK);
                 /* Draw the a subset of map within the viewport. */
-                DrawTMX(map, NULL, &viewport, 0, 0, WHITE);
+                DrawTMX(map, &camera, &viewport, 0, 0, WHITE);
             }
             EndTextureMode();
 

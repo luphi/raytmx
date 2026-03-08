@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
                 /* Progress the animated tiles. */
                 AnimateTMX(map);
                 /* Draw the whole map (because no camera nor viewport is passed). */
-                DrawTMX(map, NULL, NULL, 0, 0, WHITE);
+                DrawTMX(map, &camera, NULL, 0, 0, WHITE);
                 /* Draw the "player." */
                 DrawPoly(/* center: */ polygonCenter, /* sides: */ POLYGON_POINTS_COUNT, /* radius: */ polygonRadius,
                     /* rotation: */ 0.0f, /* color: */ DARKBLUE);

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2024-2025 Luke Philipsen
+Copyright (c) 2024-2026 Luke Philipsen
 
 Permission to use, copy, modify, and/or distribute this software for
 any purpose with or without fee is hereby granted.
@@ -455,7 +455,8 @@ RAYTMX_DEC void UnloadTMX(TmxMap* map);
  * tint is needed, passing WHITE effectively means no tint is applied.
  *
  * @param map A loaded map model to be drawn in whole at the given coordinates.
- * @param camera [optional] Camera2D to be used for parallax and occlusion. 'viewport' takes priority for occlusion.
+ * @param camera [optional] Camera2D to be used for parallax and/or occlusion. Required for parallax. 'viewport' takes
+ *               priority for occlusion.
  * @param viewport [optional] Region drawn to. Used for occlusion. Only tiles, objects, etc. in this region are drawn.
  * @param posX X coordinate at which to draw the map. This corresponds to the top-left corner of the map.
  * @param posY Y coordinate at which to draw the map. This corresponds to the top-left corner of the map.
@@ -472,8 +473,9 @@ RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, const Rectang
  * The given tint is applied to the layers. When layers have their own tints, the two colors are combined. If no tint is
  * needed, passing WHITE effectively means no tint is applied.
  *
- * @param map A loaded map model to be drawn in part at the given coordinates.
- * @param camera [optional] Camera2D to be used for parallax and occlusion. 'viewport' takes priority for occlusion.
+ * @param map A loaded map model whose layers are to be drawn.
+ * @param camera [optional] Camera2D to be used for parallax and/or occlusion. Required for parallax. 'viewport' takes
+ *               priority for occlusion.
  * @param viewport [optional] Region drawn to. Used for occlusion. Only tiles, objects, etc. in this region are drawn.
  * @param layers An array of select layers to be drawn.
  * @param layersLength Length of the given array of layers.
@@ -835,6 +837,12 @@ typedef struct raytmx_state {
         layerTilesLength, objectsLength, propertiesDepth;
 } RaytmxState; /* Intermediate data used internally to parse TMX (map), TSX (tileset), and TX (template) files */
 
+typedef struct raytmx_transform {
+    Vector2 position;
+    Vector2 parallax;
+    Vector2 cameraOffset;
+} RaytmxTransform;
+
 RaytmxExternalTileset LoadTSX(const char* fileName);
 RaytmxObjectTemplate LoadTX(const char* fileName);
 void ParseDocument(RaytmxState* raytmxState, const char* fileName);
@@ -847,14 +855,16 @@ void FreeTileset(TmxTileset tileset);
 void FreeProperty(TmxProperty property);
 void FreeLayer(TmxLayer layer);
 void FreeObject(TmxObject object);
-bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, int posX, int posY,
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, RaytmxTransform transform,
     uint32_t* rawGid, TmxTile* tile, Rectangle* tileRect);
-void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint);
-void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, Color tint);
-void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, float width,
+void DrawTMXLayersInternal(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, const TmxLayer* layers,
+    uint32_t layersLength, RaytmxTransform transform, Color tint);
+void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, RaytmxTransform transform, Color tint);
+void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, Rectangle destRect, Color tint);
+void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, RaytmxTransform transform, float width,
     float height, Color tint);
-void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint);
-void DrawTMXImageLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint);
+void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, RaytmxTransform transform, Color tint);
+void DrawTMXImageLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, RaytmxTransform transform, Color tint);
 bool CheckCollisionTMXTileLayerObject(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength,
     TmxObject object, TmxObject* outputObject);
 bool CheckCollisionTMXObjectGroupObject(TmxObjectGroup group, TmxObject object, TmxObject* outputObject);
@@ -1107,64 +1117,29 @@ RAYTMX_DEC void DrawTMX(const TmxMap* map, const Camera2D* camera, const Rectang
 }
 
 RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport,
-        const TmxLayer* layers, uint32_t layersLength, int posX, int posY, Color tint) {
-    if (map == NULL || layers == NULL || layersLength == 0)
-        return;
+        const TmxLayer* layers, uint32_t layersLength, int posX, int posY, Color tint)
+{
+    /* Pack some position and related information into an object to pass to various functions. At a minimum, this */
+    /* will determine the position each layer is drawn at. With a camera, this will also be used for parallax. */
+    RaytmxTransform transform =
+    {
+        .position = (Vector2){ .x = (float)posX, .y = (float)posY },
+        .parallax = (Vector2){ .x = 1.0f, .y = 1.0f },
+        .cameraOffset = (Vector2){ .x = 0.0, .y = 0.0f }
+    };
 
-    for (uint32_t i = 0; i < layersLength; i++) {
-        TmxLayer layer = layers[i];
-        if (!layers[i].visible) /* If the layer is not visible */
-            continue; /* Skip it - it's literally invisible */
-
-        /* All types of layers can have a couple attributes that affect color: 'opacity' and 'tintcolor' */
-        Color layerTint = tint;
-        layerTint.a = (unsigned char)((double)layerTint.a * layer.opacity);
-        if (layer.hasTintColor)
-            layerTint = ColorTint(layerTint, layer.tintColor);
-
-        /* Determine the viewport. This will depend on a couple parameters. If 'viewport' was assigned, it's used */
-        /* directly. If 'camera' was assigned, its target and zoom are used to derive a reasonable viewport from the */
-        /* screen's dimensions. If neither is assigned, the map's bounds are used. */
-        Rectangle viewport2;
-        if (viewport != NULL)
-            viewport2 = *viewport;
-        else if (camera != NULL) {
-            viewport2.width = (float)GetScreenWidth() / camera->zoom;
-            viewport2.height = (float)GetScreenHeight() / camera->zoom;
-            viewport2.x = camera->target.x - (viewport2.width / 2.0f);
-            viewport2.y = camera->target.y - (viewport2.height / 2.0f);
-        } else {
-            viewport2.x = (float)posX;
-            viewport2.y = (float)posY;
-            viewport2.width = (float)(map->width * map->tileWidth);
-            viewport2.height = (float)(map->height * map->tileHeight);
-        }
-
-        int32_t parallaxOffsetX = 0, parallaxOffsetY = 0;
-        if (camera != NULL) {
-            parallaxOffsetX = (int32_t)((double)(camera->target.x - map->parallaxOriginX) * (layer.parallaxX - 1.0));
-            parallaxOffsetY = (int32_t)((double)(camera->target.y - map->parallaxOriginY) * (layer.parallaxY - 1.0));
-        }
-
-        switch (layer.type) {
-        case LAYER_TYPE_TILE_LAYER:
-            DrawTMXTileLayer(map, viewport2, layer, posX + layer.offsetX + parallaxOffsetX,
-                posY + layer.offsetY + parallaxOffsetY, layerTint);
-            break;
-        case LAYER_TYPE_OBJECT_GROUP:
-            DrawTMXObjectGroup(map, viewport2, layer, posX + layer.offsetX + parallaxOffsetX,
-                posY + layer.offsetY + parallaxOffsetY, layerTint);
-            break;
-        case LAYER_TYPE_IMAGE_LAYER:
-            DrawTMXImageLayer(map, viewport2, layer, posX + layer.offsetX + parallaxOffsetX,
-                posY + layer.offsetY + parallaxOffsetY, layerTint);
-        break;
-        case LAYER_TYPE_GROUP:
-            DrawTMXLayers(map, camera, &viewport2, layer.layers, layer.layersLength,
-                posX + layer.offsetX + parallaxOffsetX, posY + layer.offsetY + parallaxOffsetY, layerTint);
-            break;
-        }
+    if (map != NULL && camera != NULL) /* If the map, with its parallax origin, and a camera are available */
+    {
+        /* Calculate the camera's offset, or distance, from the parallax origin. This origin is the reference point */
+        /* for parallax scrolling and this offset determines how much a layer will scroll as the camera moves. */
+        transform.cameraOffset = (Vector2)
+        {
+            .x = camera->target.x - map->parallaxOriginX,
+            .y = camera->target.y - map->parallaxOriginY
+        };
     }
+
+    DrawTMXLayersInternal(map, camera, viewport, layers, layersLength, transform, tint);
 }
 
 RAYTMX_DEC void AnimateTMX(TmxMap* map) {
@@ -1427,10 +1402,8 @@ RAYTMX_DEC void TraceLogTMX(int logLevel, const TmxMap* map) {
     TraceLog(logLevel, "height: %u tiles", map->height);
     TraceLog(logLevel, "tile width: %u pixels", map->tileWidth);
     TraceLog(logLevel, "tile height: %u pixels", map->tileHeight);
-    if (map->parallaxOriginX != 0)
-        TraceLog(logLevel, "parallax origin X: %d pixels", map->parallaxOriginX);
-    if (map->parallaxOriginY != 0)
-        TraceLog(logLevel, "parallax origin Y: %d pixels", map->parallaxOriginY);
+    TraceLog(logLevel, "parallax origin X: %d pixels", map->parallaxOriginX);
+    TraceLog(logLevel, "parallax origin Y: %d pixels", map->parallaxOriginY);
     if (map->hasBackgroundColor)
         TraceLog(logLevel, "background color: 0x%08X", map->backgroundColor);
 
@@ -3274,14 +3247,13 @@ int Clampi(int value, int minimum, int maximum) {
  * @param map A loaded map model containing the given tile layer.
  * @param layer The tile layer within the given map whose tiles will be iterated.
  * @param viewport A rectangle representing the region being drawn to. This could also be considered a search area.
- * @param posX X coordinate at which the layer is being drawn. This corresponds to the top-left corner of the map.
- * @param posY Y coordinate at which the layer is being drawn. This corresponds to the top-left corner of the map.
+ * @param transform Position/offset numbers that affect where the tile is ultimately drawn.
  * @param rawGid Optional output. The Global ID (GID) with possible flip flags. Pass NULL if not wanted.
  * @param tile Optional output. Metadata of the current tile. Pass NULL if not wanted.
  * @param tileRect Optional output. The destination rectangle, in pixels, of the current tile. Pass NULL if not wanted.
  * @return True if the next tile is being provided via the output parameters, or false if iteration is done.
  */
-bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, int posX, int posY,
+bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle viewport, RaytmxTransform transform,
         uint32_t* rawGid, TmxTile* tile, Rectangle* tileRect) {
     /* Static variables whose values will persist between calls. These are needed to initialize and iterate. */
     static const TmxTileLayer* currentLayer = NULL; /* Tile layer being iterated */
@@ -3302,8 +3274,8 @@ bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle vi
         /* Create an adjusted viewport that effectively removes the map's drawn position. With this, it doesn't need */
         /* to be a factor in the math below. */
         const Rectangle viewport2 = {
-            .x = viewport.x - (float)posX,
-            .y = viewport.y - (float)posY,
+            .x = viewport.x - transform.position.x,
+            .y = viewport.y - transform.position.y,
             .width = viewport.width,
             .height = viewport.height
         };
@@ -3397,7 +3369,65 @@ bool IterateTileLayer(const TmxMap* map, const TmxTileLayer* layer, Rectangle vi
     return true;
 }
 
-void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXLayersInternal(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, const TmxLayer* layers,
+    uint32_t layersLength, RaytmxTransform transform, Color tint)
+{
+    if (map == NULL || layers == NULL || layersLength == 0)
+        return;
+
+    for (uint32_t i = 0; i < layersLength; i++) {
+        TmxLayer layer = layers[i];
+        if (!layers[i].visible) /* If the layer is not visible */
+            continue; /* Skip it - it's literally invisible */
+
+        /* All types of layers can have a couple attributes that affect color: 'opacity' and 'tintcolor' */
+        Color layerTint = tint;
+        layerTint.a = (unsigned char)((double)layerTint.a * layer.opacity);
+        if (layer.hasTintColor)
+            layerTint = ColorTint(layerTint, layer.tintColor);
+
+        /* Determine the viewport. This will depend on a couple parameters. If 'viewport' was assigned, it's used */
+        /* directly. If 'camera' was assigned, its target and zoom are used to derive a reasonable viewport from the */
+        /* screen's dimensions. If neither is assigned, the map's bounds are used. */
+        Rectangle viewport2;
+        if (viewport != NULL)
+            viewport2 = *viewport;
+        else if (camera != NULL) {
+            viewport2.width = (float)GetScreenWidth() / camera->zoom;
+            viewport2.height = (float)GetScreenHeight() / camera->zoom;
+            viewport2.x = camera->target.x - (viewport2.width / 2.0f);
+            viewport2.y = camera->target.y - (viewport2.height / 2.0f);
+        } else {
+            viewport2.x = transform.position.x;
+            viewport2.y = transform.position.y;
+            viewport2.width = (float)(map->width * map->tileWidth);
+            viewport2.height = (float)(map->height * map->tileHeight);
+        }
+
+        /* Create an updated transform for this layer. This will be the sum of the position the map is drawn at, the */
+        /* layer's offset, and the effect of parallax scrolling if conditions are met. */
+        RaytmxTransform transform2 = transform;
+        /* "The effective parallax scrolling factor of a layer is determined by multiplying the parallax scrolling */
+        /* factor by the scrolling factors of all parent layers." */
+        transform2.parallax.x *= (float)layer.parallaxX;
+        transform2.parallax.y *= (float)layer.parallaxY;
+        /* Apply the offset specific to this layer and/or parallax scrolling. Also applies to child layers. */
+        transform2.position.x += (float)layer.offsetX + (transform2.cameraOffset.x * (1.0f - transform2.parallax.x));
+        transform2.position.y += (float)layer.offsetY + (transform2.cameraOffset.y * (1.0f - transform2.parallax.y));
+
+        switch (layer.type) {
+        case LAYER_TYPE_TILE_LAYER: DrawTMXTileLayer(map, viewport2, layer, transform2, layerTint); break;
+        case LAYER_TYPE_OBJECT_GROUP: DrawTMXObjectGroup(map, viewport2, layer, transform2, layerTint); break;
+        case LAYER_TYPE_IMAGE_LAYER: DrawTMXImageLayer(map, viewport2, layer, transform2, layerTint); break;
+        case LAYER_TYPE_GROUP:
+            DrawTMXLayersInternal(map, camera, &viewport2, layer.layers, layer.layersLength, transform2, layerTint);
+            break;
+        }
+    }
+}
+
+void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, RaytmxTransform transform, Color tint)
+{
     if (map == NULL || layer.type != LAYER_TYPE_TILE_LAYER || layer.exact.tileLayer.tilesLength == 0)
         return;
 
@@ -3405,9 +3435,12 @@ void DrawTMXTileLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int
     uint32_t rawGid;
     Rectangle tileRect;
     while (IterateTileLayer(/* map: */ map, /* layer: */ &layer.exact.tileLayer, /* viewport: */ viewport,
-            /* posX: */ posX, /* posY: */ posY, /* rawGid: */ &rawGid, /* tile: */ NULL, /* tileRect: */ &tileRect)) {
-        DrawTMXLayerTile(/* map: */ map, /* viewport: */ viewport, /* rawGid: */ rawGid,
-                         /* posX: */ posX + (int)tileRect.x, /* posY: */ posY + (int)tileRect.y, /* tint: */ tint);
+        /* transform: */ transform, /* rawGid: */ &rawGid, /* tile: */ NULL, /* tileRect: */ &tileRect))
+    {
+        tileRect.x += transform.position.x;
+        tileRect.y += transform.position.y;
+        DrawTMXLayerTile(/* map: */ map, /* viewport: */ viewport, /* rawGid: */ rawGid, /* destRect: */ tileRect,
+            /* tint: */ tint);
     }
 }
 
@@ -3508,7 +3541,7 @@ void DrawTextureTile(Texture2D texture, Rectangle source, Rectangle dest, bool f
     rlSetTexture(0);
 }
 
-void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, Color tint) {
+void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, Rectangle destRect, Color tint) {
     if (map == NULL || tint.a == 0)
         return;
 
@@ -3532,16 +3565,13 @@ void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, in
             tile = map->gidsToTiles[gid];
     }
 
-    /* Determine where the tile will be drawn. raylib's coordinates consider [x, y] to be the top-left corner of the */
+    /* Determine where the tile will be drawn. raylib's coordinates consider (X, Y) to be the top-left corner of the */
     /* rectangle being drawn. The TMX documentation complicates things a bit saying "Larger tiles will extend at the */
-    /* top and right (anchored to the bottom left)" meaning that TMX considers [x, y] to be the bottom-left corner. */
+    /* top and right (anchored to the bottom left)" meaning that TMX considers (X, Y) to be the bottom-left corner. */
     /* The simplest way to reconcile the Y coordinate differences is to substract the texture's height at Y + 1. This */
     /* way, tiles larger than the map's tile height values will be drawn further up (negative Y direction). */
-    Rectangle destRect;
-    destRect.x = posX + tile.offset.x;
-    destRect.y = posY + tile.offset.y + map->tileHeight - tile.sourceRect.height;
-    destRect.width = tile.sourceRect.width;
-    destRect.height = tile.sourceRect.height;
+    destRect.x += tile.offset.x;
+    destRect.y += tile.offset.y + map->tileHeight - tile.sourceRect.height;
 
     /* If the viewport and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
     if (CheckCollisionRecs(viewport, destRect)) {
@@ -3551,7 +3581,7 @@ void DrawTMXLayerTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, in
     }
 }
 
-void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, int posX, int posY, float width,
+void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, RaytmxTransform transform, float width,
         float height, Color tint) {
     if (map == NULL || width <= 0 || height <= 0 || tint.a == 0)
         return;
@@ -3578,12 +3608,14 @@ void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, i
 
     /* Determine the area in which to draw, and potentially stretch, the texture. This area matches that of the */
     /* <object>, not the tile size. This also means that the Y coordinate needs consideration because raylib */
-    /* considers [x, y] to the be top-left corner of any area but the TMX format considers it the bottom-left. */
-    Rectangle destRect;
-    destRect.x = posX + tile.offset.x;
-    destRect.y = posY + tile.offset.y - height;
-    destRect.width = width;
-    destRect.height = height;
+    /* considers (X, Y) to the be top-left corner of any area but the TMX format considers it the bottom-left. */
+    const Rectangle destRect =
+    {
+        .x = transform.position.x + tile.offset.x,
+        .y = transform.position.y + tile.offset.y - height,
+        .width = width,
+        .height = height
+    };
 
     /* If the viewport and destination rectangles are overlapping to any degree (i.e. if the tile is visible) */
     if (CheckCollisionRecs(viewport, destRect)) {
@@ -3593,7 +3625,7 @@ void DrawTMXObjectTile(const TmxMap* map, Rectangle viewport, uint32_t rawGid, i
     }
 }
 
-void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, RaytmxTransform transform, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_OBJECT_GROUP || tint.a == 0)
         return;
 
@@ -3606,35 +3638,59 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, i
         else /* if (objectGroup.drawOrder == OBJECT_GROUP_DRAW_ORDER_TOP_DOWN) */
             object = objectGroup.objects[objectGroup.ySortedObjects[i]];
 
-        if (object.type == OBJECT_TYPE_TILE) { /* If the object is a tile with an abitrary GID and dimensions */
+        if (object.type == OBJECT_TYPE_TILE) /* If the object is a tile with an abitrary GID and dimensions */
+        {
+            RaytmxTransform transform2 = transform;
+            transform2.position.x += (float)object.x;
+            transform2.position.y += (float)object.y;
             /* Note: This draw method handles occlusion culling so it doesn't need to be done here */
-            DrawTMXObjectTile(map, /* viewport: */ viewport, /* rawGid: */ object.gid,
-                /* posX: */ posX + (int)object.x, /* posY: */ posY + (int)object.y, /* width: */ (float)object.width,
-                /* height: */ (float)object.height, /* color: */ tint);
-        } else { /* If the object is any type other than a tile */
+            DrawTMXObjectTile(map, /* viewport: */ viewport, /* rawGid: */ object.gid, /* transform: */ transform2,
+                /* width: */ (float)object.width, /* height: */ (float)object.height, /* color: */ tint);
+        }
+        else /* If the object is any type other than a tile */
+        {
             Rectangle offsetAabb = object.aabb;
-            offsetAabb.x += posX;
-            offsetAabb.y += posY;
+            offsetAabb.x += transform.position.x;
+            offsetAabb.y += transform.position.y;
             /* If the viewport and the polygon's AABB are overlapping to any degree (i.e. it is visible) */
             if (CheckCollisionRecs(viewport, offsetAabb)) {
                 switch (object.type) {
                 case OBJECT_TYPE_RECTANGLE:
-                    DrawRectangle(/* posX: */ posX + (int)object.x, /* posY: */ posY + (int)object.y,
-                        /* width: */ (int)object.width, /* height: */ (int)object.height,
-                        /* color: */ objectGroup.color);
+                {
+                    const Rectangle rectangle =
+                    {
+                        .x = transform.position.x + (float)object.x,
+                        .y = transform.position.y + (float)object.y,
+                        .width = (float)object.width,
+                        .height = (float)object.height
+                    };
+                    DrawRectangleRec(/* rec: */ rectangle, /* color: */ objectGroup.color);
+                }
                 break;
                 case OBJECT_TYPE_ELLIPSE:
                 {
-                    /* The width and height of the object are used here as the semi major and minor axes */
-                    float halfWidth = (float)object.width / 2.0f, halfHeight = (float)object.height / 2.0f;
-                    DrawEllipse(/* centerX: */ posX + (int)(object.x + halfWidth),
-                        /* centerY: */ posY + (int)(object.y + halfHeight), /* radiusH: */ halfWidth,
+                    /* The width and height of the object determine the semi major and minor axes. That means the */
+                    /* object's width is twice the horizontal radius and its height is twice the vertical radius. */
+                    const float halfWidth = (float)object.width / 2.0f;
+                    const float halfHeight = (float)object.height / 2.0f;
+                    DrawEllipse(/* centerX: */ transform.position.x + (float)object.x + halfWidth,
+                        /* centerY: */ transform.position.y + (float)object.y + halfHeight, /* radiusH: */ halfWidth,
                         /* radiusV: */ halfHeight, /* color: */ objectGroup.color);
                 }
                 break;
                 case OBJECT_TYPE_POINT:
-                DrawCircle(/* centerX: */ (int)object.x, /* centerY: */ (int)object.y,
-                    /* radius: */ (float)map->tileWidth / 4.0f, /* color: */ objectGroup.color);
+                {
+                    /* A point is a single pixel but the TMX format doesn't require the point must be drawn any */
+                    /* particular way. Tiled uses a pin icon. Drawing the exact pixel is tempting but hard to see so */
+                    /* the point is drawn with a circle, with a diameter equal to a quarter of a tile's width. */
+                    const Vector2 center =
+                    {
+                        .x = transform.position.x + (float)object.x,
+                        .y = transform.position.y + (float)object.y
+                    };
+                    DrawCircleV(/* center: */ center, /* radius: */ (float)map->tileWidth / 4.0f,
+                        /*color: */ objectGroup.color);
+                }
                 break;
                 case OBJECT_TYPE_POLYGON:
                 case OBJECT_TYPE_POLYLINE:
@@ -3645,8 +3701,8 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, i
                     for (uint32_t i = 0; i < object.pointsLength; i++) {
                         /* Polygons' and polyglines' vertices are stored with relative positions. To get the absolute */
                         /* position needed for drawing, just add the object's position and offset. */
-                        object.drawPoints[i].x += (float)object.x + (float)posX;
-                        object.drawPoints[i].y += (float)object.y + (float)posY;
+                        object.drawPoints[i].x += transform.position.x + (float)object.x;
+                        object.drawPoints[i].y += transform.position.y + (float)object.y;
                     }
                     /* Use the offset points to draw the poly(gon|line) */
                     if (object.type == OBJECT_TYPE_POLYGON) {
@@ -3665,8 +3721,8 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, i
                 case OBJECT_TYPE_TEXT:
                     for (uint32_t i = 0; i < object.text->linesLength; i++) {
                         Vector2 position = object.text->lines[i].position;
-                        position.x += posX;
-                        position.y += posY;
+                        position.x += transform.position.x;
+                        position.y += transform.position.y;
                         DrawTextEx(/* font: */ object.text->lines[i].font, /* text: */ object.text->lines[i].content,
                             /* position: */ position, /* fontSize: */ (float)object.text->pixelSize,
                             /* spacing: */ object.text->lines[i].spacing, /* tint: */ object.text->color);
@@ -3682,21 +3738,23 @@ void DrawTMXObjectGroup(const TmxMap* map, Rectangle viewport, TmxLayer layer, i
     }
 }
 
-void DrawTMXImageLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, int posX, int posY, Color tint) {
+void DrawTMXImageLayer(const TmxMap* map, Rectangle viewport, TmxLayer layer, RaytmxTransform transform, Color tint) {
     if (map == NULL || layer.type != LAYER_TYPE_IMAGE_LAYER || !layer.exact.imageLayer.hasImage ||
             layer.exact.imageLayer.image.width == 0 || layer.exact.imageLayer.image.height == 0 || tint.a == 0)
         return;
 
     TmxImageLayer imageLayer = layer.exact.imageLayer;
     /* Determine where the image of this image layer would be drawn, assuming no repetitions */
-    Rectangle imageRect;
-    imageRect.x = (float)posX;
-    imageRect.y = (float)posY;
-    imageRect.width = (float)imageLayer.image.width;
-    imageRect.height = (float)imageLayer.image.height;
+    Rectangle imageRect =
+    {
+        .x = transform.position.x,
+        .y = transform.position.y,
+        .width = (float)imageLayer.image.width,
+        .height = (float)imageLayer.image.height
+    };
 
     if (!imageLayer.repeatX && !imageLayer.repeatY && CheckCollisionRecs(viewport, imageRect)) /* If visible */
-        DrawTexture(/* texture: */ imageLayer.image.texture, /* posX: */ posX, /* posY: */ posY, /* tint: */ tint);
+        DrawTextureV(/* texture: */ imageLayer.image.texture, /* position: */ transform.position, /* tint: */ tint);
     else if (imageLayer.repeatX || imageLayer.repeatY) { /* If the image might be drawn across a whole axis, or both */
         /* Use integer division to determine the X and Y positions at which a the image would appear if it were */
         /* repeated across the whole axis (i.e. if "Repeat X" and/or "Repeat Y" are enabled) */
@@ -3947,12 +4005,11 @@ TmxObject TranslateObject(TmxObject object, float dx, float dy) {
     /* Translate the position of the object by the different X and Y deltas */
     object.x += (double)dx;
     object.y += (double)dy;
-    /* Translate the Axis-Aligned Bounding Boxes (AABBs) to match */
+    /* Translate the Axis-Aligned Bounding Box (AABB) to match */
     object.aabb.x += dx;
     object.aabb.y += dy;
     /* Note: Although polygons and polylines have a series of vertices, they are relative to the object. This means */
-    /* nothing more needs to be done. Translating the object's X and Y effectively translates each vertex. Plus, the */
-    /* points array is a heap allocation so doing a += on the points modifies them globally. That's bad. */
+    /* nothing more needs to be done. Translating the object's X and Y effectively translates each vertex. */
     return object;
 }
 
@@ -3979,9 +4036,11 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap* map, const TmxLayer* layers,
             /* Iterate through each tile that the object's Axis-Aligned Bounding Box (AABB) overlaps with */
             TmxTile tile;
             Rectangle tileRect;
+            RaytmxTransform transform = { .position = {0.0f, 0.0f}, .parallax = {1.0f, 1.0f} };
             while (IterateTileLayer(/* map: */ map, /* layer: */ &layers[i].exact.tileLayer,
-                    /* viewport: */ object.aabb, /* posX: */ 0, /* posY: */ 0, /* rawGid: */ NULL, /* tile: */ &tile,
-                    /* tileRect: */ &tileRect)) {
+                    /* viewport: */ object.aabb, /* transform: */ transform, /* rawGid: */ NULL, /* tile: */ &tile,
+                    /* tileRect: */ &tileRect))
+            {
                 /* Iterate through each object associated with the tile */
                 for (uint32_t j = 0; j < tile.objectGroup.objectsLength; j++) {
                     /* This object, the tile's collision information, has a relative position so this object must be */
