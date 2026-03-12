@@ -1,19 +1,22 @@
-#include <math.h> // Included for atan2f(), cosf(), roundf(), and sinf().
-#include <stddef.h> // Included for NULL.
-#include <stdlib.h> // Included for EXIT_FAILURE and EXIT_SUCCESS.
+#include <math.h> // Required for: atan2f(), cosf(), roundf(), sinf().
+#include <stddef.h> // Required for: NULL.
+#include <stdlib.h> // Required for: EXIT_FAILURE, EXIT_SUCCESS.
 
 #include "raylib.h"
 
 #define RAYTMX_IMPLEMENTATION
 #include "raytmx.h"
 
-Rectangle GetCameraViewport(Camera2D camera, float mapWidth, float mapHeight)
+// Get a rectangle equal to the visible area surrounding a camera's target.
+static Rectangle GetCameraViewport(Camera2D camera, float mapWidth, float mapHeight)
 {
     Rectangle viewport = { 0 };
-    viewport.width = mapWidth/camera.zoom;
-    viewport.height = mapHeight/camera.zoom;
-    viewport.x = camera.target.x - (viewport.width/2.0f);
-    viewport.y = camera.target.y - (viewport.height/2.0f);
+
+    viewport.width = roundf(mapWidth/camera.zoom);
+    viewport.height = roundf(mapHeight/camera.zoom);
+    viewport.x = roundf(camera.target.x - (viewport.width/2.0f));
+    viewport.y = roundf(camera.target.y - (viewport.height/2.0f));
+
     return viewport;
 }
 
@@ -23,8 +26,8 @@ int main(void)
     const char *fileName = "../assets/example.tmx";
 
     // Configure the window with a resolution and title. This example will also target 60 frames per second.
-    const int mapWidth = 36;
-    const int mapHeight = 52;
+    const int mapWidth = 30;
+    const int mapHeight = 44;
     const int tileWidth = 16;
     const int tileHeight = 16;
     const int screenWidth = mapWidth*tileWidth;
@@ -62,24 +65,24 @@ int main(void)
     // 'zoom' is the linear scale factor meaning a value of 6.0f would be a 6x zoom.
     camera.zoom = 6.0f;
 
-    // Create an explicit viewport. This defines the region of the map that's visible with the current camera.
+    // Get an explicit viewport. This defines the region of the map that's visible with the current camera.
     Rectangle viewport = GetCameraViewport(camera, (float)screenWidth, (float)screenHeight);
 
-    // Finally, create a flag that enables or disables the use of the camera. When 'true', the camera is used. When
-    // 'false', the camera not used but the viewport is causing the culling to be visible.
+    // Finally, create a flag that enables or disables the use of the camera. When true, the camera is used. When false.
+    // the camera not used but the viewport is causing the culling to be visible.
     bool useCamera = true;
 
     while (!WindowShouldClose())
     {
         // If the Z key was briefly pressed once.
-        if (IsKeyPressed(KEY_Z)) useCamera = !useCamera;
+        if (IsKeyPressed(KEY_Z)) useCamera = !useCamera; // Flip 'useCamera' to enable or disable the camera.
 
         // If the keypad + or keypad - key is currently pressed.
-        if (IsKeyDown(KEY_KP_ADD) || IsKeyDown(KEY_KP_SUBTRACT))
+        if (IsKeyPressed(KEY_KP_ADD) || IsKeyPressed(KEY_KP_SUBTRACT))
         {
             // Zoom in or out if the + or - key is pressed, respectively.
-            if (IsKeyDown(KEY_KP_ADD)) camera.zoom += (camera.zoom < 10.0f)? 0.25f : 0.0f;
-            if (IsKeyDown(KEY_KP_SUBTRACT)) camera.zoom -= (camera.zoom > 1.0f) ? 0.25f : 0.0f;
+            if (IsKeyPressed(KEY_KP_ADD)) camera.zoom += (camera.zoom < 10.0f)? 1.0f : 0.0f;
+            if (IsKeyPressed(KEY_KP_SUBTRACT)) camera.zoom -= (camera.zoom > 1.0f)? 1.0f : 0.0f;
             viewport = GetCameraViewport(camera, (float)screenWidth, (float)screenHeight);
         }
 
@@ -98,6 +101,8 @@ int main(void)
             const float theta = atan2f(velocity.y, velocity.x); // Angle of the vector in radians.
             camera.target.x += cosf(theta)*panSpeed*GetFrameTime();
             camera.target.y += sinf(theta)*panSpeed*GetFrameTime();
+            camera.target.x = roundf(camera.target.x);
+            camera.target.y = roundf(camera.target.y);
             viewport = GetCameraViewport(camera, (float)screenWidth, (float)screenHeight);
         }
 
@@ -125,8 +130,8 @@ int main(void)
             DrawTexturePro(renderTexture.texture, sourceRect,
                 (Rectangle){ 0.0, 0.0, (float)screenWidth, (float)screenHeight }, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
 
-            // Draw a border around the viewport. This makes it visible if the camera is disabled.
-            DrawRectangleLinesEx(viewport, 2.0f, RED);
+            // Draw a viewport border. This makes it visible if the camera is disabled.
+            DrawRectangleLinesEx(viewport, 1.0f, RED);
 
             if (useCamera) EndMode2D();
 

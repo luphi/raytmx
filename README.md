@@ -53,41 +53,41 @@ Only do this in one file. In other source files, include the header without defi
 
 Loading and unloading follows raylib's patterns.
 ```c
-TmxMap* LoadTMX(const char* fileName);
-void UnloadTMX(TmxMap* map);
+TmxMap* LoadTMX(const char *fileName);
+void UnloadTMX(TmxMap *map);
 ```
 
 Drawing also follows raylib's patterns.
 ```c
-void DrawTMX(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, int posX, int posY, Color tint);
-void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport, const TmxLayer* layers,
+void DrawTMX(const TmxMap *map, const Camera2D *camera, const Rectangle *viewport, int posX, int posY, Color tint);
+void DrawTMXLayers(const TmxMap *map, const Camera2D *camera, const Rectangle *viewport, const TmxLayer *layers,
     uint32_t layersLength, int posX, int posY, Color tint);
 ```
 
 Animating a TMX is done by calling a specific function once per frame.
 ```c
-void AnimateTMX(TmxMap* map);
+void AnimateTMX(TmxMap *map);
 ```
 
 Collision checks also follow raylib's patterns.
 ```c
 bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2);
-bool CheckCollisionTMXTileLayersRec(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength, Rectangle rec,
-    TmxObject* outputObject);
-bool CheckCollisionTMXTileLayersCircle(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength, Vector2 center,
-    float radius, TmxObject* outputObject);
-bool CheckCollisionTMXTileLayersPoint(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength, Vector2 point,
-    TmxObject* outputObject);
-bool CheckCollisionTMXLayersPoly(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength, Vector2* points,
-    int pointCount, TmxObject* outputObject);
-bool CheckCollisionTMXLayersPolyEx(const TmxMap* map, const TmxLayer* layers, uint32_t layersLength, Vector2* points,
-    int pointCount, Rectangle aabb, TmxObject* outputObject);
-bool CheckCollisionTMXObjectGroupRec(TmxObjectGroup group, Rectangle rec, TmxObject* outputObject);
-bool CheckCollisionTMXObjectGroupCircle(TmxObjectGroup group, Vector2 center, float radius, TmxObject* outputObject);
-bool CheckCollisionTMXObjectGroupPoint(TmxObjectGroup group, Vector2 point, TmxObject* outputObject);
-bool CheckCollisionTMXObjectGroupPoly(TmxObjectGroup group, Vector2* points, int pointCount, TmxObject* outputObject);
-bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2* points, int pointCount, Rectangle aabb,
-    TmxObject* outputObject);
+bool CheckCollisionTMXTileLayersRec(const TmxMap *map, const TmxLayer *layers, uint32_t layersLength, Rectangle rec,
+    TmxObject *outputObject);
+bool CheckCollisionTMXTileLayersCircle(const TmxMap *map, const TmxLayer *layers, uint32_t layersLength, Vector2 center,
+    float radius, TmxObject *outputObject);
+bool CheckCollisionTMXTileLayersPoint(const TmxMap *map, const TmxLayer *layers, uint32_t layersLength, Vector2 point,
+    TmxObject *outputObject);
+bool CheckCollisionTMXTileLayersPolyPoly(const TmxMap *map, const TmxLayer *layers, uint32_t layersLength,
+    Vector2 *points, int pointCount, TmxObject *outputObject);
+bool CheckCollisionTMXTileLayersPolyPolyEx(const TmxMap *map, const TmxLayer *layers, uint32_t layersLength,
+    Vector2 *points, int pointCount, Rectangle aabb, TmxObject *outputObject);
+bool CheckCollisionTMXObjectGroupRec(TmxObjectGroup group, Rectangle rec, TmxObject *outputObject);
+bool CheckCollisionTMXObjectGroupCircle(TmxObjectGroup group, Vector2 center, float radius, TmxObject *outputObject);
+bool CheckCollisionTMXObjectGroupPoint(TmxObjectGroup group, Vector2 point, TmxObject *outputObject);
+bool CheckCollisionTMXObjectGroupPoly(TmxObjectGroup group, Vector2 *points, int pointCount, TmxObject *outputObject);
+bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2 *points, int pointCount, Rectangle aabb,
+    TmxObject *outputObject);
 ```
 Although raytmx doesn't do anything that would be considered collision response, the objects collided with are provided
 as optional output variables, *outputObject*, to allow for it.
@@ -96,44 +96,46 @@ Example programs that use all of the above features are included.
 
 A more minimal example program would look like:
 ```c
-#include <stddef.h> /* NULL */
-#include <stdlib.h> /* EXIT_FAILURE, EXIT_SUCCESS */
+#include <stddef.h> // Required for: NULL.
+#include <stdlib.h> // Required for: EXIT_FAILURE, EXIT_SUCCESS.
 
 #include "raylib.h"
 
 #define RAYTMX_IMPLEMENTATION
 #include "raytmx.h"
 
-int main(int argc, char **argv) {
-    /* Configure the window with a resolution and title. This example will also target 60 frames per second. */
-    const int screenWidth = 1024, screenHeight = 768;
-    const float panSpeed = 150.0f; /* Pixels per second. */
+int main(void)
+{
+    // Configure the window with a resolution and title. This example will also target 60 frames per second.
+    const int screenWidth = 1024;
+    const int screenHeight = 768;
+    const float panSpeed = 150.0f; // Pixels per second.
     InitWindow(screenWidth, screenHeight, "raytmx example");
     SetTargetFPS(60);
 
-    /* Load the map. If loading fails, NULL will be returned and details will be TraceLog()'d. */
-    TmxMap* map = LoadTMX("example.tmx");
-    if (map == NULL) {
-        TraceLog(LOG_ERROR, "Failed to load TMX \"%s\"", tmx);
+    // Load the map from disk. If loading fails, NULL will be returned and details will be TraceLog()'d.
+    TmxMap *map = LoadTMX("example.tmx");
+    if (map == NULL)
+    {
+        TraceLog(LOG_ERROR, "Failed to load TMX \"example.tmx\"");
         CloseWindow();
         return EXIT_FAILURE;
     }
 
-    /* Create a camera that initially looks at the center of the map. */
-    Camera2D camera;
-    camera.target.x = (float)(map->width * map->tileWidth) / 2.0f;
-    camera.target.y = (float)(map->height * map->tileHeight) / 2.0f;
-    camera.offset.x = (float)screenWidth / 2.0f;
-    camera.offset.y = (float)screenHeight / 2.0f;
+    // Create a camera that initially looks at the center of the map.
+    Camera2D camera = { 0 };
+    camera.target = (Vector2){ (float)(map->width*map->tileWidth)/2.0f, (float)(map->height*map->tileHeight)/2.0f };
+    camera.offset = (Vector2){ (float)screenWidth/2.0f, (float)screenHeight/2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 6.0f;
 
-    while (WindowShouldClose() == false) {
-        /* Pan the camera based on which arrow key, if any, is pressed. */
-        if (IsKeyDown(KEY_RIGHT)) camera.target.x += panSpeed * GetFrameTime();
-        if (IsKeyDown(KEY_LEFT))  camera.target.x -= panSpeed * GetFrameTime();
-        if (IsKeyDown(KEY_DOWN))  camera.target.y += panSpeed * GetFrameTime();
-        if (IsKeyDown(KEY_UP))    camera.target.y -= panSpeed * GetFrameTime();
+    while (!WindowShouldClose())
+    {
+        // Pan the camera based on which arrow key, if any, is pressed.
+        if (IsKeyDown(KEY_RIGHT)) camera.target.x += panSpeed*GetFrameTime();
+        if (IsKeyDown(KEY_LEFT)) camera.target.x -= panSpeed*GetFrameTime();
+        if (IsKeyDown(KEY_DOWN)) camera.target.y += panSpeed*GetFrameTime();
+        if (IsKeyDown(KEY_UP)) camera.target.y -= panSpeed*GetFrameTime();
 
         BeginDrawing();
         {
@@ -141,7 +143,7 @@ int main(int argc, char **argv) {
             BeginMode2D(camera);
             {
                 AnimateTMX(map);
-                DrawTMX(map, NULL, NULL, 0, 0, WHITE);
+                DrawTMX(map, &camera, NULL, 0, 0, WHITE);
             }
             EndMode2D();
         }
@@ -153,7 +155,6 @@ int main(int argc, char **argv) {
 
     return EXIT_SUCCESS;
 }
-
 ```
 
 

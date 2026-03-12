@@ -1,5 +1,5 @@
-#include <stddef.h> // Included for NULL.
-#include <stdlib.h> // Included for EXIT_FAILURE and EXIT_SUCCESS.
+#include <stddef.h> // Required for: NULL.
+#include <stdlib.h> // Required for: EXIT_FAILURE, EXIT_SUCCESS.
 
 #include "raylib.h"
 

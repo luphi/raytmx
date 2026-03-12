@@ -273,7 +273,7 @@
   </data>
   </layer>
  </group>
- <group id="18" name="Parallaxed" parallaxx="1.15" parallaxy="1.15">
+ <group id="18" name="Parallaxed" visible="0" parallaxx="1.15" parallaxy="1.15">
   <layer id="21" name="Fog" width="30" height="44" opacity="0.75">
    <data encoding="base64" compression="zlib">
    eJydl0tuwzAMRH1QNVZz/0M0iwgYTN6QTBcCLIni8E96Xde1X+v3tZ72/Xiv+32+Yb9lf96t1/oxWr/raB6wDt0PnOk7l28HXMUkuZWXy3RfnzJM9CXdFIN0UH+Qbh3uArokwx1ssYDWebqd6c26WM8FS/V3WpWtiyvfq52SHmR38nWF6z7ROCN6p02x1eE6np5NclTfTHCTvUgWXRR/FOeOO/WR8zo8kqydf/Ud0VcxmmyR8mmK6zqn2pZsQXk+xU08FJNqNfmBeCXfeI1JuZRkJlzKW4oVoq/0UZtMcanX6P22+67mnL2eH/08djbQpbh13Bt4Om4Xd109Imx91/VB8pXL4T0o1eRK3ml9pnrhPlCeeu65r3y6eccxujwmf5wzfee4Lu+2lfpDslkXT87XeXj/cHq36RS3mh1Tzk9zoMLt8nc6j9Ndh9vNMF6bu9lxYm/CVbkJp/ovUN4kRzUzENZZXU2jvOxwPS8qu9N8/E18OU+1NemdZtwUI1Xsew2u6nNF63Lp/nxrTZ32FLcx9WHCcjt3uMdOpFv6prlN5fH7bnZw7GrWorqhuG7Tb2oh5XBVr8i2ZK8003ovIx/QXEe4Km+aayn+U21R/Elf2NdnrKrO1TybZDiLag7VecL13NH76j9Ucf1N9c+Q5j+PA4oBpXd7pXrzhPNqTqCe4LXhv7081afkA98v4NHhJt9WPdDr6x/euum/
