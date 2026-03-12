@@ -5,7 +5,7 @@ raytmx supports and all should be displayed whenever raytmx is modified.
 
 ## Usage
 
-The program accepts one command-line argument, an index.
+The program accepts one command-line argument, an index.  
 ./test 0  
 ./test 1  
 ...and so on. Refer to the source for the index-to-TMX mappings.
