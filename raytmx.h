@@ -711,7 +711,8 @@ void StringConcatenate(char *destination, const char *source);
 RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
 {
     TmxMap *map = (TmxMap *)MemAllocZero(sizeof(TmxMap));
-    RaytmxState state = { 0 };
+    RaytmxState state;
+    memset(&state, 0, sizeof(RaytmxState));
     state.format = FORMAT_TMX;
 
     // Do format-agnostic parsing of the document. The state object will be populated with raytmx's models of the
@@ -938,28 +939,36 @@ RAYTMX_DEC void DrawTMX(const TmxMap *map, const Camera2D *camera, const Rectang
 
     if (map->hasBackgroundColor)
     {
-        const Rectangle backgroundRect = (viewport != NULL)? *viewport : (Rectangle){ (float)posX, (float)posY,
-            (float)(map->width*map->tileWidth), (float)(map->height*map->tileHeight) };
+        Rectangle backgroundRect;
+        backgroundRect.x = (float)posX;
+        backgroundRect.y = (float)posY;
+        backgroundRect.width = (float)(map->width * map->tileWidth);
+        backgroundRect.height = (float)(map->height * map->tileHeight);
         DrawRectangleRec(backgroundRect, map->backgroundColor);
     }
 
     DrawTMXLayers(map, camera, viewport, map->layers, map->layersLength, posX, posY, tint);
 }
 
-RAYTMX_DEC void DrawTMXLayers(const TmxMap *map, const Camera2D *camera, const Rectangle *viewport,
-        const TmxLayer *layers, uint32_t layersLength, int posX, int posY, Color tint)
+RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport,
+    const TmxLayer* layers, uint32_t layersLength, int posX, int posY, Color tint)
 {
     // Pack some position and related information into an object to pass to various functions. At a minimum, this will
     // will determine the position each layer is drawn at. With a camera, this will also be used for parallax.
-    RaytmxTransform transform = { (Vector2){ .x = (float)posX, .y = (float)posY },
-        (Vector2){ .x = 1.0f, .y = 1.0f }, (Vector2){ .x = 0.0, .y = 0.0f } };
+    RaytmxTransform transform;
+    transform.position.x = (float)posX;
+    transform.position.y = (float)posY;
+    transform.parallax.x = 1.0f;
+    transform.parallax.y = 1.0f;
+    transform.cameraOffset.x = 0.0f;
+    transform.cameraOffset.y = 0.0f;
 
     if ((map != NULL) && (camera != NULL)) // If the map, with its parallax origin, and a camera are available.
     {
         // Calculate the camera's distance from the parallax origin. This origin is the reference point for parallax
         // scrolling. The amount a parallaxed layer scrolls is proportion to this distance and some constant factor.
-        transform.cameraOffset = (Vector2){ camera->target.x - map->parallaxOriginX,
-            camera->target.y - map->parallaxOriginY };
+        transform.cameraOffset.x = camera->target.x - map->parallaxOriginX;
+        transform.cameraOffset.y = camera->target.y - map->parallaxOriginY;
     }
 
     DrawTMXLayersInternal(map, camera, viewport, layers, layersLength, transform, tint);
@@ -999,7 +1008,8 @@ RAYTMX_DEC void AnimateTMX(TmxMap *map)
 // Helper function that creates a TmxObject equivalent to a rectangle.
 TmxObject CreateRectangleTMXObject(Rectangle rec)
 {
-    TmxObject object = { 0 };
+    TmxObject object;
+    memset(&object, 0, sizeof(TmxObject));
 
     object.type = OBJECT_TYPE_RECTANGLE;
     object.x = (double)rec.x;
@@ -1023,7 +1033,8 @@ RAYTMX_DEC bool CheckCollisionTMXTileLayersRec(const TmxMap *map, const TmxLayer
 // Helper function that creates a TmxObject equivalent to a circle.
 TmxObject CreateCircularTMXObject(Vector2 center, float radius)
 {
-    TmxObject object = { 0 };
+    TmxObject object;
+    memset(&object, 0, sizeof(TmxObject));
 
     object.type = OBJECT_TYPE_ELLIPSE;
     object.x = (double)(center.x - radius);
@@ -1051,7 +1062,8 @@ RAYTMX_DEC bool CheckCollisionTMXTileLayersCircle(const TmxMap *map, const TmxLa
 // Helper function that creates a TmxObject equivalent to a point.
 TmxObject CreatePointTMXObject(Vector2 point)
 {
-    TmxObject object = { 0 };
+    TmxObject object;
+    memset(&object, 0, sizeof(TmxObject));
 
     object.type = OBJECT_TYPE_POINT;
     object.x = (double)point.x;
@@ -1075,7 +1087,8 @@ RAYTMX_DEC bool CheckCollisionTMXTileLayersPoint(const TmxMap *map, const TmxLay
 // Note: If an AABB should be calculated from the vertices, pass NULL for 'aabb'.
 TmxObject CreatePolygonTMXObject(Vector2 *points, int pointCount, Rectangle *aabb)
 {
-    TmxObject object = { 0 };
+    TmxObject object;
+    memset(&object, 0, sizeof(TmxObject));
 
     object.type = OBJECT_TYPE_POLYGON;
 
@@ -1229,7 +1242,8 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags)
 RaytmxExternalTileset LoadTSX(const char *fileName)
 {
     RaytmxExternalTileset externalTileset = { 0 };
-    RaytmxState state = { 0 };
+    RaytmxState state;
+    memset(&state, 0, sizeof(RaytmxState));
     state.format = FORMAT_TSX;
 
     // Do format-agnostic parsing of the document. The state object will be populated with raytmx's models of the
@@ -1262,7 +1276,8 @@ RaytmxExternalTileset LoadTSX(const char *fileName)
 RaytmxObjectTemplate LoadTX(const char *fileName)
 {
     RaytmxObjectTemplate objectTemplate = { 0 };
-    RaytmxState state = { 0 };
+    RaytmxState state;
+    memset(&state, 0, sizeof(RaytmxState));
     state.format = FORMAT_TX;
 
     // Do format-agnostic parsing of the document. The state object will be populated with raytmx's models of the
@@ -1325,7 +1340,7 @@ void ParseDocument(RaytmxState *state, const char *fileName)
     char *buffer = (char *)MemAlloc((unsigned int)bufferLength);
     hoxml_init(&hoxml, buffer, bufferLength);
 
-    hoxml_code_t code = 0;
+    hoxml_code_t code;
     while ((code = hoxml_parse(&hoxml, content, contentLength)) != HOXML_END_OF_DOCUMENT)
     {
         if (code > HOXML_END_OF_DOCUMENT) // If there's information about an element, attribute, whatever.
@@ -3440,8 +3455,10 @@ bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle vi
         // Calculate the tile's destination rectangle, in pixels.
         // Note: The map's tile width and height determine the grid size and, therefore, the (X, y) position. However,
         // the tileset may define a different width and height which are assigned to the metadata's 'dimensions'.
-        *tileRect = (Rectangle){ (float)((uint32_t)currentX*map->tileWidth),
-            (float)((uint32_t)currentY*map->tileHeight), tile2.dimensions.x, tile2.dimensions.y };
+        tileRect->x = (float)((uint32_t)currentX*map->tileWidth);
+        tileRect->y = (float)((uint32_t)currentY*map->tileHeight);
+        tileRect->width = tile2.dimensions.x;
+        tileRect->height = tile2.dimensions.y;
     }
 
     return true;
@@ -3478,8 +3495,10 @@ void DrawTMXLayersInternal(const TmxMap *map, const Camera2D *camera, const Rect
         }
         else
         {
-            viewport2 = (Rectangle){ transform.position.x, transform.position.y, (float)(map->width*map->tileWidth),
-                (float)(map->height*map->tileHeight) };
+            viewport2.x = transform.position.x;
+            viewport2.y = transform.position.y;
+            viewport2.width = (float)(map->width*map->tileWidth);
+            viewport2.height = (float)(map->height*map->tileHeight);
         }
 
         // Create an updated transform for this layer. This will be the sum of the position the map is drawn at, the
@@ -3950,7 +3969,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
 
                 case OBJECT_TYPE_POINT: // Object 2's type.
                 {
-                    return CheckCollisionPointRec((Vector2){ (float)object2.x, (float)object2.y }, object1.aabb);
+                    Vector2 point;
+                    point.x = (float)object2.x;
+                    point.y = (float)object2.y;
+                    return CheckCollisionPointRec(point, object1.aabb);
                 }
 
                 case OBJECT_TYPE_POLYGON: // Object 2's type.
@@ -3958,13 +3980,23 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 {
                     // A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind
                     // polygon vertices are relative so the top-left corner is always (0, 0).
-                    Vector2 points[4] = { 0 };
-                    points[0] = (Vector2){ 0.0f, 0.0f };
-                    points[1] = (Vector2){ (float)object1.width, 0.0f };
-                    points[2] = (Vector2){ (float)object1.width, (float)object1.height };
-                    points[3] = (Vector2){ 0.0f, (float)object1.height };
-                    return CheckCollisionPolyPoly((Vector2){ (float)object1.x, (float)object1.y }, points, 4,
-                        (Vector2){ (float)object2.x, (float)object2.y }, object2.points, object2.pointsLength);
+                    Vector2 points[4];
+                    points[0].x = 0.0f;
+                    points[0].y = 0.0f;
+                    points[1].x = (float)object1.width;
+                    points[1].y = 0.0f;
+                    points[2].x = (float)object1.width;
+                    points[2].y = (float)object1.height;
+                    points[3].x = 0.0f;
+                    points[3].y = (float)object1.height;
+                    Vector2 position1;
+                    position1.x = (float)object1.x;
+                    position1.y = (float)object1.y;
+                    Vector2 position2;
+                    position2.x = (float)object2.x;
+                    position2.y = (float)object2.y;
+                    return CheckCollisionPolyPoly(position1, points, 4, position2, object2.points,
+                        object2.pointsLength);
                 }
         } break;
 
@@ -3976,7 +4008,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 case OBJECT_TYPE_TEXT: // Object 2's type.
                 case OBJECT_TYPE_TILE: // Object 2's type.
                 {
-                    return CheckCollisionPointRec((Vector2){ (float)object1.x, (float)object2.y }, object2.aabb);
+                    Vector2 point;
+                    point.x = (float)object1.x;
+                    point.y = (float)object1.y;
+                    return CheckCollisionPointRec(point, object2.aabb);
                 }
 
                 case OBJECT_TYPE_POINT: // Object 2's type.
@@ -3989,8 +4024,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 case OBJECT_TYPE_POLYGON: // Object 2's type.
                 case OBJECT_TYPE_POLYLINE: // Object 2's type.
                 {
-                    return CheckCollisionPointPoly((Vector2){ (float)object1.x, (float)object1.y }, object2.points,
-                        object2.pointsLength);
+                    Vector2 point;
+                    point.x = (float)object1.x;
+                    point.y = (float)object1.y;
+                    return CheckCollisionPointPoly(point, object2.points, object2.pointsLength);
                 }
             } break;
 
@@ -4005,27 +4042,44 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 {
                     // A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind
                     // polygon vertices are relative so the top-left corner is always (0, 0).
-                    Vector2 points[4] = { 0 };
-                    points[0] = (Vector2){ 0.0f, 0.0f };
-                    points[1] = (Vector2){ (float)object2.width, 0.0f };
-                    points[2] = (Vector2){ (float)object2.width, (float)object2.height };
-                    points[3] = (Vector2){ 0.0f, (float)object2.height };
-                    return CheckCollisionPolyPoly((Vector2){ (float)object1.x, (float)object1.y }, object1.points,
-                        object1.pointsLength, (Vector2){ (float)object2.x, (float)object2.y }, points, 4);
+                    Vector2 points[4];
+                    points[0].x = 0.0f;
+                    points[0].y = 0.0f;
+                    points[1].x = (float)object2.width;
+                    points[1].y = 0.0f;
+                    points[2].x = (float)object2.width;
+                    points[2].y = (float)object2.height;
+                    points[3].x = 0.0f;
+                    points[3].y = (float)object2.height;
+                    Vector2 position1;
+                    position1.x = (float)object1.x;
+                    position1.y = (float)object1.y;
+                    Vector2 position2;
+                    position2.x = (float)object2.x;
+                    position2.y = (float)object2.y;
+                    return CheckCollisionPolyPoly(position1, points, 4, position2, object2.points,
+                        object2.pointsLength);
                 }
 
                 case OBJECT_TYPE_POINT: // Object 2's type.
                 {
-                    return CheckCollisionPointPoly((Vector2){ (float)object2.x, (float)object2.y }, object1.points,
-                        object1.pointsLength);
+                    Vector2 point;
+                    point.x = (float)object2.x;
+                    point.y = (float)object2.y;
+                    return CheckCollisionPointPoly(point, object1.points, object1.pointsLength);
                 }
 
                 case OBJECT_TYPE_POLYGON: // Object 2's type.
                 case OBJECT_TYPE_POLYLINE: // Object 2's type.
                 {
-                    return CheckCollisionPolyPoly((Vector2){ (float)object1.x, (float)object1.y }, object1.points,
-                        object1.pointsLength, (Vector2){ (float)object2.x, (float)object2.y }, object2.points,
-                        object2.pointsLength);
+                    Vector2 position1;
+                    position1.x = (float)object1.x;
+                    position1.y = (float)object1.y;
+                    Vector2 position2;
+                    position2.x = (float)object2.x;
+                    position2.y = (float)object2.y;
+                    return CheckCollisionPolyPoly(position1, object1.points, object1.pointsLength, position2,
+                        object2.points, object2.pointsLength);
                 }
             } break;
     }
@@ -4065,8 +4119,13 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap *map, const TmxLayer *layers,
             // Iterate through each tile that the object's Axis-Aligned Bounding Box (AABB) overlaps with.
             TmxTile tile = { 0 };
             Rectangle tileRect = { 0 };
-            const RaytmxTransform transform = { (Vector2){ 0.0f, 0.0f }, (Vector2){ 1.0f, 1.0f },
-                (Vector2){ 0.0f, 0.0f } };
+            RaytmxTransform transform;
+            transform.position.x = 0.0f;
+            transform.position.y = 0.0f;
+            transform.parallax.x = 1.0f;
+            transform.parallax.y = 1.0f;
+            transform.cameraOffset.x = 0.0f;
+            transform.cameraOffset.y = 0.0f;
             while (IterateTileLayer(map, &(layers[i].exact.tileLayer), object.aabb, transform, NULL, &tile, &tileRect))
             {
                 // Iterate through each object associated with the tile.

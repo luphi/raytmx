@@ -1,5 +1,5 @@
-#include <stddef.h> // Required for: NULL.
-#include <stdlib.h> // Required for: atoi(), EXIT_FAILURE, EXIT_SUCCESS.
+#include <cstddef> // Required for: NULL.
+#include <cstdlib> // Required for: atoi(), EXIT_FAILURE, EXIT_SUCCESS.
 
 #include "raylib.h"
 

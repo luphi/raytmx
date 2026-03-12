@@ -3,7 +3,7 @@ PLATFORM            ?= PLATFORM_DESKTOP
 RAYLIB_LIBTYPE      ?= STATIC
 BUILD_MODE          ?= DEBUG
 RAYLIB_RELEASE_PATH ?= $(RAYLIB_PATH)/src
-STD                 ?= c99
+STD                 ?= c++11
 
 ifeq ($(OS),Windows_NT)
 	PLATFORM_OS = WINDOWS
@@ -60,15 +60,15 @@ else ifeq ($(PLATFORM_OS),OSX)
 	LDLIBS = -lraylib -framework OpenGL -framework Cocoa -framework IOKit -framework CoreAudio -framework CoreVideo
 endif
 
-SRCS = test.c
-OBJS = $(SRCS:.c=.o)
+SRCS = test.cpp
+OBJS = $(SRCS:.cpp=.o)
 
 all: $(EXE)
 
 $(EXE): $(OBJS)
 	$(CC) -o $(EXE) $(OBJS) $(CFLAGS) $(INCLUDE_PATHS) $(LDFLAGS) $(LDLIBS) -D$(PLATFORM)
 
-%.o: %.c
+%.o: %.cpp
 	$(CC) -c $< -o $@ $(CFLAGS) $(INCLUDE_PATHS) -D$(PLATFORM)
 
 clean:
