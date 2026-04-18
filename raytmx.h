@@ -670,6 +670,7 @@ void FreeTileset(TmxTileset tileset);
 void FreeProperty(TmxProperty property);
 void FreeLayer(TmxLayer layer);
 void FreeObject(TmxObject object);
+bool nuke_IterateTileLayer = false;
 bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle viewport, RaytmxTransform transform,
     uint32_t *rawGid, TmxTile *tile, Rectangle *tileRect);
 void DrawTMXLayersInternal(const TmxMap *map, const Camera2D *camera, const Rectangle *viewport, const TmxLayer *layers,
@@ -3339,8 +3340,9 @@ bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle vi
         return false;
     }
 
-    if (currentLayer != layer) // If the layer has changed (i.e. iteration should initialize).
+    if (nuke_IterateTileLayer || currentLayer != layer) // If the layer has changed (i.e. iteration should initialize).
     {
+        nuke_IterateTileLayer = false;
         currentLayer = layer; // Remember this layer.
 
         // Create an adjusted viewport that effectively removes the map's drawn position. With this, it doesn't need to
@@ -3537,6 +3539,7 @@ void DrawTMXTileLayer(const TmxMap *map, Rectangle viewport, TmxLayer layer, Ray
     // Iterate through each tile that overlaps with the viewport and draw them.
     uint32_t rawGid = 0;
     Rectangle destRect = { 0 };
+    nuke_IterateTileLayer = true;
     while (IterateTileLayer(map, &(layer.exact.tileLayer), viewport, transform, &rawGid, NULL, &destRect))
         DrawTMXLayerTile(map, viewport, transform, rawGid, destRect, tint); // Draw the individual tile.
 }
@@ -4126,6 +4129,7 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap *map, const TmxLayer *layers,
             transform.parallax.y = 1.0f;
             transform.cameraOffset.x = 0.0f;
             transform.cameraOffset.y = 0.0f;
+            nuke_IterateTileLayer = true;
             while (IterateTileLayer(map, &(layers[i].exact.tileLayer), object.aabb, transform, NULL, &tile, &tileRect))
             {
                 // Iterate through each object associated with the tile.
