@@ -21,7 +21,8 @@ int main(int argc, char **argv)
         "assets/level25_unencoded.tmx",            // Index 8.
         "assets/MagicLand.tmx",                    // Index 9.
         "assets/MagicLand_uncompressed.tmx",       // Index 10.
-        "assets/text.tmx"                          // Index 11.
+        "assets/text.tmx",                         // Index 11.
+        "assets/collision_tiles.tmx"               // Index 12.
     };
 
     if (argc < 2)
@@ -31,12 +32,11 @@ int main(int argc, char **argv)
     }
 
     const int index = atoi(argv[1]);
-    if ((index < 0) || (index > 11))
+    if ((index < 0) || (index > 12))
     {
         TraceLog(LOG_INFO, "%d is out-of-bounds", index);
         return EXIT_FAILURE;
     }
-
 
     const char* fileName = tests[index];
     const int screenWidth = 1600;
@@ -64,7 +64,8 @@ int main(int argc, char **argv)
     const float panVelocity = 25.0f*map->tileWidth; // 25 tiles per second.
     const Vector2 offset = { (float)screenWidth/2.0f, (float)screenHeight/2.0f };
     const Vector2 target = { (float)(map->width*map->tileWidth)/2.0f, (float)(map->height*map->tileHeight)/2.0f };
-    Camera2D camera = { offset, target, 0.0f, 1.0f };
+    Camera2D camera = { offset, target, 0.0f, 2.0f };
+    const bool hasCollisions = index == 12; // Enable or disable collision checks. Unique to one test map.
 
     while (!WindowShouldClose())
     {
@@ -92,6 +93,14 @@ int main(int argc, char **argv)
             }
             EndMode2D();
             DrawFPS(10, 10);
+
+            if (hasCollisions)
+            {
+                const Vector2 mousePosition = GetScreenToWorld2D(GetMousePosition(), camera);
+                const bool isColliding = CheckCollisionTMXTileLayersPoint(map, map->layers, 1, mousePosition, NULL);
+                if (isColliding) DrawText("COLLIDING", 10, 40, 20, LIME);
+                else DrawText("NOT COLLIDING", 10, 40, 20, RED);
+            }
         }
         EndDrawing();
     }

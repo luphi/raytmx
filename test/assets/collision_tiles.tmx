@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.11" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="16" height="16" tilewidth="16" tileheight="16" infinite="0" nextlayerid="2" nextobjectid="1">
+ <tileset firstgid="1" name="collision_tiles" tilewidth="16" tileheight="16" tilecount="4" columns="4">
+  <image source="collision_tiles.png" width="64" height="16"/>
+  <tile id="1">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="0" y="0" width="16" height="16"/>
+   </objectgroup>
+  </tile>
+  <tile id="2">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="2" y="2" width="12" height="12">
+     <ellipse/>
+    </object>
+   </objectgroup>
+  </tile>
+  <tile id="3">
+   <objectgroup draworder="index" id="2">
+    <object id="1" x="8" y="1">
+     <polygon points="0,0 7,7 0,14 -7,7"/>
+    </object>
+   </objectgroup>
+  </tile>
+ </tileset>
+ <layer id="1" name="Sole tile layer" width="16" height="16">
+  <data encoding="base64" compression="zlib">
+   eJxjYIAAJhw0sXLkAGS9zEhsFhwYm1omLGKEAEwtLvuJ1Y/LfnzhRaz9+MwYtR9THTkAl1709IbOJ8YMQvroYT8hANILAKJbAMc=
+  </data>
+ </layer>
+</map>

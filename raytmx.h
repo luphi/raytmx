@@ -3318,6 +3318,7 @@ int Clampi(int value, int minimum, int maximum)
 
 // Scary-looking helper function that does something simple: iterates through the visible tiles of a layer.
 // Returns true while still iterating so it can be used like "while (IterateTileLayer()) { ... }".
+// Uses static variables to maintain state between calls. Pass NULL as the map or layers to reset the state.
 // Details of the current tile are assigned to output parameters, if passed a non-NULL address.
 // Iteration is done row-by-row.
 bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle viewport, RaytmxTransform transform,
@@ -3332,10 +3333,11 @@ bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle vi
     static int currentX = 0; // Current tile X position (column) within the iteration.
     static int currentY = 0; // Current tile Y position (row) within the iteration.
 
-    // If iteration is impossible or there are effectively no tiles to iterate over.
+    // If iteration is impossible, there are effectively no tiles to iterate over, or static variables should be reset.
     if ((map == NULL) || (map->width == 0) || (map->height == 0) || (map->tileWidth == 0) || (map->tileHeight == 0) ||
         (layer == NULL) || (layer->tilesLength == 0))
     {
+        currentLayer = NULL;
         return false;
     }
 
@@ -3537,6 +3539,7 @@ void DrawTMXTileLayer(const TmxMap *map, Rectangle viewport, TmxLayer layer, Ray
     // Iterate through each tile that overlaps with the viewport and draw them.
     uint32_t rawGid = 0;
     Rectangle destRect = { 0 };
+    IterateTileLayer(NULL, NULL, viewport, transform, NULL, NULL, NULL); // Reset tile iteration.
     while (IterateTileLayer(map, &(layer.exact.tileLayer), viewport, transform, &rawGid, NULL, &destRect))
         DrawTMXLayerTile(map, viewport, transform, rawGid, destRect, tint); // Draw the individual tile.
 }
@@ -4126,6 +4129,7 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap *map, const TmxLayer *layers,
             transform.parallax.y = 1.0f;
             transform.cameraOffset.x = 0.0f;
             transform.cameraOffset.y = 0.0f;
+            IterateTileLayer(NULL, NULL, object.aabb, transform, NULL, NULL, NULL); // Reset tile iteration.
             while (IterateTileLayer(map, &(layers[i].exact.tileLayer), object.aabb, transform, NULL, &tile, &tileRect))
             {
                 // Iterate through each object associated with the tile.
