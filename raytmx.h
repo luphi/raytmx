@@ -3972,7 +3972,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
 
                 case OBJECT_TYPE_POINT: // Object 2's type.
                 {
-                    Vector2 point;
+                    Vector2 point = { 0 };
                     point.x = (float)object2.x;
                     point.y = (float)object2.y;
                     return CheckCollisionPointRec(point, object1.aabb);
@@ -3983,7 +3983,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 {
                     // A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind
                     // polygon vertices are relative so the top-left corner is always (0, 0).
-                    Vector2 points[4];
+                    Vector2 points[4] = { 0 };
                     points[0].x = 0.0f;
                     points[0].y = 0.0f;
                     points[1].x = (float)object1.width;
@@ -3992,10 +3992,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                     points[2].y = (float)object1.height;
                     points[3].x = 0.0f;
                     points[3].y = (float)object1.height;
-                    Vector2 position1;
+                    Vector2 position1 = { 0 };
                     position1.x = (float)object1.x;
                     position1.y = (float)object1.y;
-                    Vector2 position2;
+                    Vector2 position2 = { 0 };
                     position2.x = (float)object2.x;
                     position2.y = (float)object2.y;
                     return CheckCollisionPolyPoly(position1, points, 4, position2, object2.points,
@@ -4011,7 +4011,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 case OBJECT_TYPE_TEXT: // Object 2's type.
                 case OBJECT_TYPE_TILE: // Object 2's type.
                 {
-                    Vector2 point;
+                    Vector2 point = { 0 };
                     point.x = (float)object1.x;
                     point.y = (float)object1.y;
                     return CheckCollisionPointRec(point, object2.aabb);
@@ -4027,9 +4027,11 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 case OBJECT_TYPE_POLYGON: // Object 2's type.
                 case OBJECT_TYPE_POLYLINE: // Object 2's type.
                 {
-                    Vector2 point;
-                    point.x = (float)object1.x;
-                    point.y = (float)object1.y;
+                    Vector2 point = { 0 };
+                    // Polygon and polyline vertices are relative to its object's position whereas points are absolute.
+                    // To reconcile that, make the point relative to the poly object.
+                    point.x = (float)(object1.x - object2.x);
+                    point.y = (float)(object1.y - object2.y);
                     return CheckCollisionPointPoly(point, object2.points, object2.pointsLength);
                 }
             } break;
@@ -4045,7 +4047,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 {
                     // A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind
                     // polygon vertices are relative so the top-left corner is always (0, 0).
-                    Vector2 points[4];
+                    Vector2 points[4] = { 0 };
                     points[0].x = 0.0f;
                     points[0].y = 0.0f;
                     points[1].x = (float)object2.width;
@@ -4054,10 +4056,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                     points[2].y = (float)object2.height;
                     points[3].x = 0.0f;
                     points[3].y = (float)object2.height;
-                    Vector2 position1;
+                    Vector2 position1 = { 0 };
                     position1.x = (float)object1.x;
                     position1.y = (float)object1.y;
-                    Vector2 position2;
+                    Vector2 position2 = { 0 };
                     position2.x = (float)object2.x;
                     position2.y = (float)object2.y;
                     return CheckCollisionPolyPoly(position1, points, 4, position2, object2.points,
@@ -4066,19 +4068,21 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
 
                 case OBJECT_TYPE_POINT: // Object 2's type.
                 {
-                    Vector2 point;
-                    point.x = (float)object2.x;
-                    point.y = (float)object2.y;
+                    Vector2 point = { 0 };
+                    // Polygon and polyline vertices are relative to its object's position whereas points are absolute.
+                    // To reconcile that, make the point relative to the poly object.
+                    point.x = (float)(object2.x - object1.x);
+                    point.y = (float)(object2.y - object1.y);
                     return CheckCollisionPointPoly(point, object1.points, object1.pointsLength);
                 }
 
                 case OBJECT_TYPE_POLYGON: // Object 2's type.
                 case OBJECT_TYPE_POLYLINE: // Object 2's type.
                 {
-                    Vector2 position1;
+                    Vector2 position1 = { 0 };
                     position1.x = (float)object1.x;
                     position1.y = (float)object1.y;
-                    Vector2 position2;
+                    Vector2 position2 = { 0 };
                     position2.x = (float)object2.x;
                     position2.y = (float)object2.y;
                     return CheckCollisionPolyPoly(position1, object1.points, object1.pointsLength, position2,
