@@ -2366,15 +2366,27 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
             {
                 // The layer's data is a series of unsigned, 32-bit integers encoded as a Base64 string. But, XML
                 // considers everything between <data> and </data> to be content meaning there is probably some
-                // whitespace on both ends of the content we need to ignore. So, find the actual start and stop:.
+                // whitespace on both ends of the content we need to ignore. So, find the actual start and stop.
                 char *encodedStart = hoxml->content;
                 while (isspace(*encodedStart)) encodedStart++;
                 char *encodedEnd = encodedStart + strlen(encodedStart) - 1;
                 while ((encodedEnd > encodedStart) && isspace(*encodedEnd)) encodedEnd--;
 
+                // Copy the Base64 string into a dedicated buffer without whitespace appropriate for decoding.
+                const size_t length = (size_t)(encodedEnd - encodedStart + 1);
+                char *base64 = (char *)MemAllocZero((unsigned int)length + 1); // +1 for the null terminator.
+                StringCopyN(base64, encodedStart, length);
+
                 // With the string of encoded Base64 data trimmed, decode it.
                 int decodedLength = 0;
-                unsigned char *decoded = DecodeDataBase64((const unsigned char *)encodedStart, &decodedLength);
+#if RAYLIB_VERSION_MAJOR >= 6
+                // raylib 6+ uses 'const char *' for the first parameter.
+                unsigned char *decoded = DecodeDataBase64(base64, &decodedLength);
+#else
+                // Past versions of raylib, before 6.0, use 'const unsigned char *' for the first parameter.
+                unsigned char *decoded = DecodeDataBase64((const unsigned char *)base64, &decodedLength);
+#endif
+                MemFree(base64); // Free the dedicated Base64 buffer. It's no longer needed.
                 if (decoded != NULL)
                 {
                     if (state->tileLayer->compression == NULL) // If the Base64-encoded data is uncompressed.
@@ -2388,7 +2400,7 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                             iter += 1; // Point to the next unsigned, 32-bit integer in the decoded data.
                         }
                     }
-                    else // If the Base-64encoded data is also compressed.
+                    else // If the Base64-encoded data is also compressed.
                     {
                         if ((strcmp(state->tileLayer->compression, "gzip") == 0) ||
                             (strcmp(state->tileLayer->compression, "zlib") == 0))
@@ -3904,8 +3916,9 @@ bool CheckCollisionLinePoly(Vector2 startPos, Vector2 endPos, Vector2 polyPos, V
         const Vector2 currentPoint = points[currentIndex];
         const Vector2 nextPoint = points[nextIndex];
 
-        // Check these edges for collisions. Note: The last parameter is unused, hence NULL.
-        if (CheckCollisionLines(startPos, endPos, currentPoint, nextPoint, NULL)) return true;
+        // Check these edges for collisions. Note: The last parameter is required in raylib 6+ but unused.
+        Vector2 collisionPoint = { 0 };
+        if (CheckCollisionLines(startPos, endPos, currentPoint, nextPoint, &collisionPoint)) return true;
     }
 
     return false;
