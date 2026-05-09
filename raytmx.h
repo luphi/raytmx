@@ -479,16 +479,27 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags);
 // Private implementation of public types and functions.
 //----------------------------------------------------------------------------------
 
+// Preprocessor trick that allows for zero-initializations that work as both C and C++.
+// Consider the code:
+//    Color c = { 0 }; // Zeroes every field when compiled as C but only the first field as C++.
+// Also consider:
+//    Color c = { }; // Zeroes every field when compiled as C++. Invalid C before C23.
+// The simplest solution is to use "{ 0 }" when compiled as C++ and "{ }" when compiled as C:
+//    Color c = { ZERO_INIT }; // Zeroes every field in both cases.
+#ifdef __cplusplus
+    #define ZERO_INIT
+#else
+    #define ZERO_INIT 0
+#endif
+
 // Thickness, in pixels, that outlines of specific objects are drawn with.
 #define TMX_LINE_THICKNESS 3.0f
 
 // Bit flags that GIDs may be masked with in order to indicate transformations for individual tiles.
-enum TmxFlipFlags {
-    FLIP_FLAG_HORIZONTAL = 0x80000000,
-    FLIP_FLAG_VERTICAL = 0x40000000,
-    FLIP_FLAG_DIAGONAL = 0x20000000,
-    FLIP_FLAG_ROTATE_120 = 0x10000000
-};
+#define FLIP_FLAG_HORIZONTAL 0x80000000
+#define FLIP_FLAG_VERTICAL   0x40000000
+#define FLIP_FLAG_DIAGONAL   0x20000000
+#define FLIP_FLAG_ROTATE_120 0x10000000
 
 typedef enum {
     FORMAT_TMX = 0, // Tilemap with tilesets, layers, etc.
@@ -942,16 +953,16 @@ RAYTMX_DEC void DrawTMX(const TmxMap *map, const Camera2D *camera, const Rectang
         Rectangle backgroundRect;
         backgroundRect.x = (float)posX;
         backgroundRect.y = (float)posY;
-        backgroundRect.width = (float)(map->width * map->tileWidth);
-        backgroundRect.height = (float)(map->height * map->tileHeight);
+        backgroundRect.width = (float)(map->width*map->tileWidth);
+        backgroundRect.height = (float)(map->height*map->tileHeight);
         DrawRectangleRec(backgroundRect, map->backgroundColor);
     }
 
     DrawTMXLayers(map, camera, viewport, map->layers, map->layersLength, posX, posY, tint);
 }
 
-RAYTMX_DEC void DrawTMXLayers(const TmxMap* map, const Camera2D* camera, const Rectangle* viewport,
-    const TmxLayer* layers, uint32_t layersLength, int posX, int posY, Color tint)
+RAYTMX_DEC void DrawTMXLayers(const TmxMap *map, const Camera2D *camera, const Rectangle *viewport,
+    const TmxLayer *layers, uint32_t layersLength, int posX, int posY, Color tint)
 {
     // Pack some position and related information into an object to pass to various functions. At a minimum, this will
     // will determine the position each layer is drawn at. With a camera, this will also be used for parallax.
@@ -1241,7 +1252,7 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags)
 
 RaytmxExternalTileset LoadTSX(const char *fileName)
 {
-    RaytmxExternalTileset externalTileset = { 0 };
+    RaytmxExternalTileset externalTileset = { ZERO_INIT };
     RaytmxState state;
     memset(&state, 0, sizeof(RaytmxState));
     state.format = FORMAT_TSX;
@@ -1275,7 +1286,7 @@ RaytmxExternalTileset LoadTSX(const char *fileName)
 
 RaytmxObjectTemplate LoadTX(const char *fileName)
 {
-    RaytmxObjectTemplate objectTemplate = { 0 };
+    RaytmxObjectTemplate objectTemplate = { ZERO_INIT };
     RaytmxState state;
     memset(&state, 0, sizeof(RaytmxState));
     state.format = FORMAT_TX;
@@ -1335,7 +1346,7 @@ void ParseDocument(RaytmxState *state, const char *fileName)
 
     StringCopy(state->documentDirectory, GetDirectoryPath2(fileName));
 
-    hoxml_context_t hoxml = { 0 };
+    hoxml_context_t hoxml = { ZERO_INIT };
     size_t bufferLength = contentLength;
     char *buffer = (char *)MemAlloc((unsigned int)bufferLength);
     hoxml_init(&hoxml, buffer, bufferLength);
@@ -1843,8 +1854,8 @@ void HandleAttribute(RaytmxState *state, hoxml_context_t *hoxml)
             // The 'points' attribute's value is a string containing all points of the poly(gon|line) in the form
             // "0,0 31.25,-0.75 49.5,-16.5 93.25,-17.25" where the points are [0, 0], [31.25, -0.75], etc. and these
             // points are relative to the object's position (its 'x' and 'y' attributes).
-            char x[32] = { 0 };
-            char y[32] = { 0 };
+            char x[32] = { ZERO_INIT };
+            char y[32] = { ZERO_INIT };
             char *terminator = NULL;
             char *comma = NULL;
             char *iter = hoxml->value;
@@ -2483,7 +2494,7 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
             {
                 // The Comma-Separated Value (CSV) list herein is a series of Global IDs (GIDs) of tiles in the form
                 // "31,32,33" where 31, 32, and 33 are GIDs.
-                char valueStr[16] = { 0 }; // Must fit all digits of a single value. 16 should be more than enough.
+                char valueStr[16] = { ZERO_INIT }; // Must fit all digits of a single value. This is more than enough.
                 char *iter = hoxml->content;
                 while ((iter != NULL) && (*iter != '\0')) // While not pointing to the end of the string.
                 {
@@ -2912,7 +2923,7 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                         // at the start of the next loop.
                         end = start;
 
-                        TmxTextLine line = { 0 };
+                        TmxTextLine line = { ZERO_INIT };
                         line.content = (char *)MemAllocZero((unsigned int)strlen(sourceBuffer) + 1);
                         StringCopy(line.content, sourceBuffer);
                         line.font = font;
@@ -3213,7 +3224,7 @@ void FreeState(RaytmxState *state)
     state->objectsLength = 0;
 }
 
-void inline FreeString(char *str)
+inline void FreeString(char *str)
 {
     if (str != NULL) MemFree(str);
 }
@@ -3454,7 +3465,7 @@ bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle vi
     // Get the actual GID value by stripping any potential flipping flags.
     const uint32_t gid = GetGid(rawGid2, NULL, NULL, NULL, NULL);
     // Get the tile's metadata from knowing its GID.
-    TmxTile tile2 = { 0 };
+    TmxTile tile2 = { ZERO_INIT };
     if (gid < map->gidsToTilesLength) tile2 = map->gidsToTiles[gid];
 
     // If the raw GID should be assigned to its output parameter.
@@ -3498,7 +3509,7 @@ void DrawTMXLayersInternal(const TmxMap *map, const Camera2D *camera, const Rect
         // Determine the viewport. This will depend on a couple parameters. If 'viewport' was assigned, it's used
         // directly. If 'camera' was assigned, its target and zoom are used to derive a reasonable viewport from the
         // screen's dimensions. If neither is assigned, the map's bounds are used.
-        Rectangle viewport2 = { 0 };
+        Rectangle viewport2 = { ZERO_INIT };
         if (viewport != NULL) viewport2 = *viewport;
         else if (camera != NULL)
         {
@@ -3550,7 +3561,7 @@ void DrawTMXTileLayer(const TmxMap *map, Rectangle viewport, TmxLayer layer, Ray
 
     // Iterate through each tile that overlaps with the viewport and draw them.
     uint32_t rawGid = 0;
-    Rectangle destRect = { 0 };
+    Rectangle destRect = { ZERO_INIT };
     IterateTileLayer(NULL, NULL, viewport, transform, NULL, NULL, NULL); // Reset tile iteration.
     while (IterateTileLayer(map, &(layer.exact.tileLayer), viewport, transform, &rawGid, NULL, &destRect))
         DrawTMXLayerTile(map, viewport, transform, rawGid, destRect, tint); // Draw the individual tile.
@@ -3913,11 +3924,15 @@ bool CheckCollisionLinePoly(Vector2 startPos, Vector2 endPos, Vector2 polyPos, V
         if (nextIndex == pointCount) nextIndex = 0;
 
         // Get the current and next points. These two points form an edge of the polygon.
-        const Vector2 currentPoint = points[currentIndex];
-        const Vector2 nextPoint = points[nextIndex];
+        Vector2 currentPoint = points[currentIndex];
+        currentPoint.x += polyPos.x;
+        currentPoint.y += polyPos.y;
+        Vector2 nextPoint = points[nextIndex];
+        nextPoint.x += polyPos.x;
+        nextPoint.y += polyPos.y;
 
         // Check these edges for collisions. Note: The last parameter is required in raylib 6+ but unused.
-        Vector2 collisionPoint = { 0 };
+        Vector2 collisionPoint = { ZERO_INIT };
         if (CheckCollisionLines(startPos, endPos, currentPoint, nextPoint, &collisionPoint)) return true;
     }
 
@@ -3985,7 +4000,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
 
                 case OBJECT_TYPE_POINT: // Object 2's type.
                 {
-                    Vector2 point = { 0 };
+                    Vector2 point = { ZERO_INIT };
                     point.x = (float)object2.x;
                     point.y = (float)object2.y;
                     return CheckCollisionPointRec(point, object1.aabb);
@@ -3996,7 +4011,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 {
                     // A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind
                     // polygon vertices are relative so the top-left corner is always (0, 0).
-                    Vector2 points[4] = { 0 };
+                    Vector2 points[4] = { ZERO_INIT };
                     points[0].x = 0.0f;
                     points[0].y = 0.0f;
                     points[1].x = (float)object1.width;
@@ -4005,10 +4020,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                     points[2].y = (float)object1.height;
                     points[3].x = 0.0f;
                     points[3].y = (float)object1.height;
-                    Vector2 position1 = { 0 };
+                    Vector2 position1 = { ZERO_INIT };
                     position1.x = (float)object1.x;
                     position1.y = (float)object1.y;
-                    Vector2 position2 = { 0 };
+                    Vector2 position2 = { ZERO_INIT };
                     position2.x = (float)object2.x;
                     position2.y = (float)object2.y;
                     return CheckCollisionPolyPoly(position1, points, 4, position2, object2.points,
@@ -4024,7 +4039,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 case OBJECT_TYPE_TEXT: // Object 2's type.
                 case OBJECT_TYPE_TILE: // Object 2's type.
                 {
-                    Vector2 point = { 0 };
+                    Vector2 point = { ZERO_INIT };
                     point.x = (float)object1.x;
                     point.y = (float)object1.y;
                     return CheckCollisionPointRec(point, object2.aabb);
@@ -4040,7 +4055,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 case OBJECT_TYPE_POLYGON: // Object 2's type.
                 case OBJECT_TYPE_POLYLINE: // Object 2's type.
                 {
-                    Vector2 point = { 0 };
+                    Vector2 point = { ZERO_INIT };
                     // Polygon and polyline vertices are relative to its object's position whereas points are absolute.
                     // To reconcile that, make the point relative to the poly object.
                     point.x = (float)(object1.x - object2.x);
@@ -4060,7 +4075,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 {
                     // A rectangle is a polygon. Create an array of points to treat it as a polygon keeping in mind
                     // polygon vertices are relative so the top-left corner is always (0, 0).
-                    Vector2 points[4] = { 0 };
+                    Vector2 points[4] = { ZERO_INIT };
                     points[0].x = 0.0f;
                     points[0].y = 0.0f;
                     points[1].x = (float)object2.width;
@@ -4069,10 +4084,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                     points[2].y = (float)object2.height;
                     points[3].x = 0.0f;
                     points[3].y = (float)object2.height;
-                    Vector2 position1 = { 0 };
+                    Vector2 position1 = { ZERO_INIT };
                     position1.x = (float)object1.x;
                     position1.y = (float)object1.y;
-                    Vector2 position2 = { 0 };
+                    Vector2 position2 = { ZERO_INIT };
                     position2.x = (float)object2.x;
                     position2.y = (float)object2.y;
                     return CheckCollisionPolyPoly(position1, points, 4, position2, object2.points,
@@ -4081,7 +4096,7 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
 
                 case OBJECT_TYPE_POINT: // Object 2's type.
                 {
-                    Vector2 point = { 0 };
+                    Vector2 point = { ZERO_INIT };
                     // Polygon and polyline vertices are relative to its object's position whereas points are absolute.
                     // To reconcile that, make the point relative to the poly object.
                     point.x = (float)(object2.x - object1.x);
@@ -4092,10 +4107,10 @@ RAYTMX_DEC bool CheckCollisionTMXObjects(TmxObject object1, TmxObject object2)
                 case OBJECT_TYPE_POLYGON: // Object 2's type.
                 case OBJECT_TYPE_POLYLINE: // Object 2's type.
                 {
-                    Vector2 position1 = { 0 };
+                    Vector2 position1 = { ZERO_INIT };
                     position1.x = (float)object1.x;
                     position1.y = (float)object1.y;
-                    Vector2 position2 = { 0 };
+                    Vector2 position2 = { ZERO_INIT };
                     position2.x = (float)object2.x;
                     position2.y = (float)object2.y;
                     return CheckCollisionPolyPoly(position1, object1.points, object1.pointsLength, position2,
@@ -4137,8 +4152,8 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap *map, const TmxLayer *layers,
         if (layers[i].type == LAYER_TYPE_TILE_LAYER) // If the layer has tiles.
         {
             // Iterate through each tile that the object's Axis-Aligned Bounding Box (AABB) overlaps with.
-            TmxTile tile = { 0 };
-            Rectangle tileRect = { 0 };
+            TmxTile tile = { ZERO_INIT };
+            Rectangle tileRect = { ZERO_INIT };
             RaytmxTransform transform;
             transform.position.x = 0.0f;
             transform.position.y = 0.0f;
@@ -4293,7 +4308,7 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset *t
 
 void TraceLogTMXProperties(int logLevel, TmxProperty *properties, uint32_t propertiesLength, int numSpaces)
 {
-    char padding[16] = { 0 };
+    char padding[16] = { ZERO_INIT };
     StringCopyN(padding, "                ", numSpaces);
 
     if (tmxLogFlags & LOG_SKIP_PROPERTIES) TraceLog(logLevel, "%sskipped %u properties", padding, propertiesLength);
@@ -4339,7 +4354,7 @@ void TraceLogTMXProperties(int logLevel, TmxProperty *properties, uint32_t prope
 
 void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, int numSpaces)
 {
-    char padding[16] = { 0 };
+    char padding[16] = { ZERO_INIT };
     StringCopyN(padding, "                ", numSpaces);
 
     if (tmxLogFlags & LOG_SKIP_LAYERS) TraceLog(logLevel, "%sskipped %u layers", padding, layersLength);
@@ -4479,7 +4494,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, in
 
 void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces)
 {
-    char padding[16] = { 0 };
+    char padding[16] = { ZERO_INIT };
     StringCopyN(padding, "                ", numSpaces);
 
     TraceLog(logLevel, "%s      ID: %u", padding, object.id);
@@ -4858,7 +4873,7 @@ void *MemAllocZero(unsigned int size)
 // raylib's GetDirectoryPath() doesn't work as described so this is used in its place.
 const char *GetDirectoryPath2(const char *filePath)
 {
-    static char directoryPath[260] = { 0 }; // Max path length on Windows, the bottleneck, is 260 characters.
+    static char directoryPath[260] = { ZERO_INIT }; // Max path length on Windows, the bottleneck, is 260 characters.
     memset(directoryPath, '\0', 260);
 
     size_t length = strlen(filePath);
@@ -4885,7 +4900,7 @@ const char *GetDirectoryPath2(const char *filePath)
 
 const char *JoinPath(const char *prefix, const char *suffix)
 {
-    static char joinedPath[260] = { 0 }; // Max path length on Windows, the bottleneck, is 260 characters.
+    static char joinedPath[260] = { ZERO_INIT }; // Max path length on Windows, the bottleneck, is 260 characters.
     memset(joinedPath, '\0', 260);
     StringCopy(joinedPath, prefix);
 

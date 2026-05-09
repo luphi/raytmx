@@ -10,8 +10,7 @@
 // Get a rectangle equal to the visible area surrounding a camera's target.
 static Rectangle GetCameraViewport(Camera2D camera, float mapWidth, float mapHeight)
 {
-    Rectangle viewport = { 0 };
-
+    Rectangle viewport = { ZERO_INIT };
     viewport.width = roundf(mapWidth/camera.zoom);
     viewport.height = roundf(mapHeight/camera.zoom);
     viewport.x = roundf(camera.target.x - (viewport.width/2.0f));
@@ -53,13 +52,15 @@ int main(void)
 
     // Create a camera. This will be a smooth-panning camera that moves with floating-point precision. It will be used
     // to pan over the render texture that the map is rendered to./
-    Camera2D camera = { 0 };
+    Camera2D camera = { ZERO_INIT };
     // 'offset' describes the camera's focus relative to the viewport's (0, 0) position. This means 'offset' should be
     // assigned with { <screen width / 2>, <screen height / 2> } in order for the camera's center to be in the center of
     // the screen.
-    camera.offset = (Vector2){ (float)screenWidth/2.0f, (float)screenHeight/2.0f };
+    camera.offset.x = (float)screenWidth/2.0f;
+    camera.offset.y = (float)screenHeight/2.0f;
     // 'target' describes the position the camera is looking at and will initially be the map's center.
-    camera.target = (Vector2){ (float)screenWidth/2.0f , (float)screenHeight/2.0f };
+    camera.target.x = (float)screenWidth/2.0f;
+    camera.target.y = (float)screenHeight/2.0f;
     // 'rotation' is an angle (in degrees) the camera would be rotated and zero means no rotation.
     camera.rotation = 0.0f;
     // 'zoom' is the linear scale factor meaning a value of 6.0f would be a 6x zoom.
@@ -127,8 +128,9 @@ int main(void)
             if (useCamera) BeginMode2D(camera);
 
             // Draw the render texture, effectively drawing the map.
-            DrawTexturePro(renderTexture.texture, sourceRect,
-                (Rectangle){ 0.0, 0.0, (float)screenWidth, (float)screenHeight }, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+            const Rectangle dest = { 0.0, 0.0, (float)screenWidth, (float)screenHeight };
+            const Vector2 origin = { 0.0f, 0.0f };
+            DrawTexturePro(renderTexture.texture, sourceRect, dest, origin, 0.0f, WHITE);
 
             // Draw a viewport border. This makes it visible if the camera is disabled.
             DrawRectangleLinesEx(viewport, 1.0f, RED);

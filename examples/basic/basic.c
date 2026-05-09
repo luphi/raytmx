@@ -30,9 +30,11 @@ int main(void)
     const float panVelocity = 10.0f*map->tileWidth; // 10 tiles per second.
 
     // Create a camera. Cameras use matrices to efficiently look at select parts of the map/world.
-    Camera2D camera = { 0 };
-    camera.offset = (Vector2){ (float)screenWidth/2.0f, (float)screenHeight/2.0f };
-    camera.target = (Vector2){ (float)(map->width*map->tileWidth)/2.0f, (float)(map->height*map->tileHeight)/2.0f };
+    Camera2D camera = { ZERO_INIT };
+    camera.offset.x = (float)screenWidth/2.0f;
+    camera.offset.y = (float)screenHeight/2.0f;
+    camera.target.x = (float)(map->width*map->tileWidth)/2.0f;
+    camera.target.y = (float)(map->height*map->tileHeight)/2.0f;
     camera.rotation = 0.0f;
     camera.zoom = 6.0f;
 

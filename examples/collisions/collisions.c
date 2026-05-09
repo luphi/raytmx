@@ -31,17 +31,20 @@ typedef struct Polygon {
 // Get a Polygon with a given center point and radius.
 static Polygon GetPolygon(Vector2 center, float radius)
 {
-    Polygon poly = { 0 };
-
+    Polygon poly = { ZERO_INIT };
     poly.center = center;
     poly.radius = radius;
-    poly.aabb = (Rectangle){ center.x - radius, center.y - radius, 2.0f*radius, 2.0f*radius };
+    poly.aabb.x = center.x - radius;
+    poly.aabb.y = center.y - radius;
+    poly.aabb.width = 2.0f*radius;
+    poly.aabb.height = 2.0f*radius;
 
     float theta = 0.0f;
     const float dTheta = 2.0f*PI/(float)POLYGON_POINTS_COUNT;
     for (int i = 0; i < POLYGON_POINTS_COUNT; i++)
     {
-        poly.points[i] = (Vector2){ center.x + (radius*cosf(theta)), center.y + (radius*sinf(theta)) };
+        poly.points[i].x = center.x + (radius*cosf(theta));
+        poly.points[i].y = center.y + (radius*sinf(theta));
         theta += dTheta;
     }
 
@@ -93,8 +96,9 @@ int main(void)
     const Vector2 mapCenter = { (float)(map->width*map->tileWidth)/2.0f, (float)(map->height*map->tileHeight)/2.0f };
 
     // Create a camera. Cameras use matrices to efficiently look at select parts of the map/world.
-    Camera2D camera = { 0 };
-    camera.offset = (Vector2){ (float)screenWidth/2.0f, (float)screenHeight/2.0f };
+    Camera2D camera = { ZERO_INIT };
+    camera.offset.x = (float)screenWidth/2.0f;
+    camera.offset.y = (float)screenHeight/2.0f;
     camera.target = mapCenter;
     camera.rotation = 0.0f;
     camera.zoom = 6.0f;
@@ -102,7 +106,7 @@ int main(void)
 #if CHECK_COLLISION_OBJECT_GROUP
     // Loop through the layers to look for two things: 1) The object group that will determine where we can and cannot
     // go, and 2) the "spawn" door within the "Doors" object group where the player should spawn.
-    TmxObjectGroup wallsObjectGroup = { 0 };
+    TmxObjectGroup wallsObjectGroup = { ZERO_INIT };
     for (size_t i = 0; i < map->layersLength; i++)
     {
         TmxLayer layer = map->layers[i];
