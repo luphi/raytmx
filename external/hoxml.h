@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2024-2025 Luke Philipsen
+Copyright (c) 2024 Luke Philipsen
 
 Permission to use, copy, modify, and/or distribute this software for
 any purpose with or without fee is hereby granted.
@@ -204,7 +204,7 @@ enum {
     HOXML_STATE_DONE,
     /* Post (i.e. after) parser states indicating actions to take on the next call to hoxml_parse() */
     HOXML_POST_STATE_TAG_END,
-    HOXML_POST_STATE_ATTRIBUTE_END,
+    HOXML_POST_STATE_ATTRIBUTE_END
 };
 
 enum {
@@ -303,11 +303,13 @@ HOXML_DECL void hoxml_init(hoxml_context_t* context, void* buffer, size_t buffer
 }
 
 HOXML_DECL void hoxml_realloc(hoxml_context_t* context, void* buffer, size_t buffer_length) {
+    hoxml_node_t* node;
+
     if (context == NULL || context->is_initialized == 0 || buffer == NULL || buffer_length <= context->buffer_length)
         return;
 
     /* Reassign the end and parent pointers of each node, beginning at the tail and iterate to the head */
-    hoxml_node_t* node = HOXML_STACK;
+    node = HOXML_STACK;
     while (node != NULL) {
         hoxml_node_t* parent = node->parent;
         node->end = (char*)buffer + (node->end - context->buffer);
@@ -342,6 +344,9 @@ HOXML_DECL void hoxml_realloc(hoxml_context_t* context, void* buffer, size_t buf
 }
 
 HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, const size_t xml_length) {
+    const char* previous_iterator;
+    size_t previous_stream_length;
+
     if (context == NULL || context->is_initialized == 0 || xml == NULL || xml_length == 0)
         return HOXML_ERROR_INVALID_INPUT;
 
@@ -362,11 +367,15 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
         /* be recovered by assigning a new buffer with hoxml_realloc(). The latter can be recovered by passing a new */
         /* XML content string to hoxml_parse() so we'll check for one before concluding we're still in error. */
         case HOXML_STATE_ERROR_UNEXPECTED_EOF: {
+            unsigned long stream;
+            size_t bytes_to_copy;
+            hoxml_character_t c;
+
             /* Try to decode a character, or remainder of a character, at the beginning of this hopefully-new string */
-            unsigned long stream = context->stream;
+            stream = context->stream;
             /* Calculate the number of bytes to copy into the 'stream' variable from the hopefully-new string. We */
             /* want 4 bytes, or whatever is available. */
-            size_t bytes_to_copy = 4;
+            bytes_to_copy = 4;
             if (bytes_to_copy > xml_length)
                 bytes_to_copy = xml_length;
             if (context->stream_length > 0) {
@@ -379,7 +388,7 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
                 /* Copy to the 'stream' under the assumption that all of it can be overwritten */
                 memcpy(&stream, xml, bytes_to_copy);
             }
-            hoxml_character_t c = hoxml_decode_character((const char*)&stream, xml_length, context->encoding);
+            c = hoxml_decode_character((const char*)&stream, xml_length, context->encoding);
             /* If the character is the equivalent of a null terminator or there was not enough data */
             if (c.codepoint == 0 || c.codepoint == UINT32_MAX)
                 return HOXML_ERROR_UNEXPECTED_EOF;
@@ -410,9 +419,12 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
     }
 
     /* Remember some context variables in case we hit an unexpected EoF and need to undo an iteration */
-    const char* previous_iterator = context->iterator;
-    size_t previous_stream_length = context->stream_length;
+    previous_iterator = context->iterator;
+    previous_stream_length = context->stream_length;
     while (context->state >= HOXML_STATE_NONE && context->state <= HOXML_STATE_DONE) {
+        size_t bytes_remaining, bytes_to_copy;
+        hoxml_character_t c;
+
         /* About half of the parsing states assume the stack is non-null. */
         /* If parsing is currently in one of those states and the stack (head) pointer is null. */
         if (((context->state >= HOXML_STATE_TAG_BEGIN && context->state <= HOXML_STATE_OPEN_TAG) ||
@@ -425,9 +437,9 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
         }
 
         /* Calculate the number of bytes remaining in the current XML content string */
-        size_t bytes_remaining = (size_t)(context->xml_length - (context->iterator - context->xml));
+        bytes_remaining = (size_t)(context->xml_length - (context->iterator - context->xml));
         /* Calculate the number of bytes to copy into the 'stream' variable. We want 4 bytes, or whatever is left. */
-        size_t bytes_to_copy = 4;
+        bytes_to_copy = 4;
         if (bytes_to_copy > bytes_remaining)
             bytes_to_copy = bytes_remaining;
         if (context->stream_length > 0) {
@@ -441,8 +453,7 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
             /* Copy to the 'stream' under the assumption that all of it can be overwritten */
             memcpy(&(context->stream), context->iterator, bytes_to_copy);
         }
-        hoxml_character_t c = hoxml_decode_character((const char*)&(context->stream), bytes_remaining,
-            context->encoding);
+        c = hoxml_decode_character((const char*)&(context->stream), bytes_remaining, context->encoding);
 
         /* If the character is the equivalent of a null terminator or there was not enough data to decode the value */
         if (c.codepoint == 0 || c.codepoint == UINT32_MAX) {
@@ -470,8 +481,10 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
         context->stream_length = 0;
 
         #ifdef HOXML_DEBUG
+        {
             char debugCodepoint = HOXML_IS_NEW_LINE(c.codepoint) ? ' ' : c.codepoint;
             printf("  %c [%08X] [L%02dC%02d] -> ", debugCodepoint, c.codepoint, context->line, context->column);
+        }
         #endif
 
         switch(context->state) {
@@ -771,10 +784,12 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
         case HOXML_STATE_CDATA_END2: /* Found a second ']' while in a CDATA section, looking for '>' */
             HOXML_LOG_STATE("HOXML_STATE_CDATA_END2")
             if (c.codepoint == '>') {
+                size_t bytes;
+
                 context->state = HOXML_STATE_OPEN_TAG;
                 /* We couldn't be sure the CDATA section had ended until now so two ']' characters were appended. */
                 /* If the document is encoded with UTF-16, four bytes need to be removed. Two bytes otherwise. */
-                size_t bytes = context->encoding >= HOXML_ENC_UTF_16_BE ? 4 : 2;
+                bytes = context->encoding == HOXML_ENC_UTF_16_LE || context->encoding == HOXML_ENC_UTF_16_BE ? 4 : 2;
                 /* The 'end' pointer is currently pointing at the last byte, the second ']' or its latter half if */
                 /* using UTF-16. To remove the "]]" we replace them with zeroes. */
                 memset(HOXML_STACK->end - bytes + 1, 0, bytes);
@@ -865,9 +880,11 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
             HOXML_LOG_STATE("HOXML_STATE_PROCESSING_INSTRUCTION_CONTENT")
             if (c.codepoint == '?') { /* "?>" marks the end of a processing instruction */
                 const char* declaration;
+
                 if ((declaration = hoxml_strstr(context->content, context->encoding, "encoding=", HOXML_ENC_UNKNOWN,
                         HOXML_CASE_SENSITIVE)) != NULL) {
                     const char* encoding;
+
                     if ((encoding = hoxml_strstr(declaration, context->encoding, "\"", HOXML_ENC_UNKNOWN,
                             HOXML_CASE_SENSITIVE)) != NULL || (encoding = hoxml_strstr(declaration, context->encoding,
                             "'", HOXML_ENC_UNKNOWN, HOXML_CASE_SENSITIVE)) != NULL) {
@@ -1023,6 +1040,8 @@ HOXML_DECL hoxml_code_t hoxml_parse(hoxml_context_t* context, const char* xml, c
 
 /* Attempt to push a new node to the stack as a child of the current head node */
 void hoxml_push_stack(hoxml_context_t* context) {
+    hoxml_node_t* node;
+
     /* If "allocating" a new node would overflow the buffer */
     if ((context->stack == NULL && sizeof(hoxml_node_t) >= context->buffer_length) || (context->stack != NULL &&
             HOXML_STACK->end + 1 + sizeof(hoxml_node_t) >= context->buffer + context->buffer_length)) {
@@ -1031,9 +1050,8 @@ void hoxml_push_stack(hoxml_context_t* context) {
         return;
     }
 
-    hoxml_node_t* node;
     if (context->stack == NULL)/* If pushing the root node */
-        node = (hoxml_node_t*) context->buffer; /* Place the new node at the beginning of the buffer */
+        node = (hoxml_node_t*)context->buffer; /* Place the new node at the beginning of the buffer */
     else
         node = (hoxml_node_t*)(HOXML_STACK->end + 1);
     if (node != NULL) {
@@ -1046,11 +1064,13 @@ void hoxml_push_stack(hoxml_context_t* context) {
 
 /* Pop the head node from the stack */
 void hoxml_pop_stack(hoxml_context_t* context) {
+    hoxml_node_t* popped_node;
+
     if (context->stack == NULL)
         return;
 
     /* Reassign the stack (head) pointer so that it now points to the parent of the node about to be popped */
-    hoxml_node_t* popped_node = HOXML_STACK;
+    popped_node = HOXML_STACK;
     context->stack = (char*)popped_node->parent;
 
     /* Overwrite the memory used by this node with zeroes */
@@ -1074,12 +1094,14 @@ void hoxml_append_character(hoxml_context_t* context, hoxml_character_t c) {
 
 /* Attempt to add a null terminator to the end of the stack's current head node */
 void hoxml_append_terminator(hoxml_context_t* context) {
+    size_t bytes;
+
     if (HOXML_STACK->flags & HOXML_FLAG_TERMINATED) /* If the node's current string is already terminated */
         return; /* To avoid adding additional terminators and using more bytes than expected, do nothing */
     HOXML_STACK->flags |= HOXML_FLAG_TERMINATED;
 
     /* If the document is encoded with UTF-16, two bytes will be appended. One byte otherwise. */
-    size_t bytes = context->encoding >= HOXML_ENC_UTF_16_BE ? 2 : 1;
+    bytes = context->encoding == HOXML_ENC_UTF_16_LE || context->encoding == HOXML_ENC_UTF_16_BE ? 2 : 1;
     if (HOXML_STACK->end + bytes >= context->buffer + context->buffer_length) {
         context->error_return_state = context->state;
         context->state = HOXML_STATE_ERROR_INSUFFICIENT_MEMORY;
@@ -1094,9 +1116,9 @@ void hoxml_append_terminator(hoxml_context_t* context) {
 /* the type of reference. There are three types defined in an enumeration. */
 void hoxml_end_reference(hoxml_context_t* context, int type) {
     hoxml_character_t c;
+    unsigned long value; /* Integer value of numeric or hexadecimal reference */
     c.codepoint = c.encoded = 0;
     c.bytes = 0;
-    unsigned long value; /* Integer value of numeric or hexadecimal reference */
 
     switch (type) {
     case HOXML_REF_TYPE_ENTITY:
@@ -1158,10 +1180,12 @@ void hoxml_begin_tag(hoxml_context_t* context) {
 }
 
 hoxml_code_t hoxml_end_tag(hoxml_context_t* context) {
+    hoxml_node_t *node, *parent;
+
     context->state = HOXML_STATE_OPEN_TAG;
     context->post_state = HOXML_POST_STATE_TAG_END; /* Common to three of the four possible cases */
-    hoxml_node_t* node = HOXML_STACK;
-    hoxml_node_t* parent = node->parent;
+    node = HOXML_STACK;
+    parent = node->parent;
     if (node->flags & HOXML_FLAG_END_TAG) { /* True for e.g. </tag> but not <tag/> */
         if (parent == NULL || hoxml_strcmp(&(node->tag), context->encoding, &(parent->tag), context->encoding,
                 HOXML_CASE_SENSITIVE) == 0) { /* If there was preceeding open tag or there is but it doesn't match */
@@ -1173,7 +1197,8 @@ hoxml_code_t hoxml_end_tag(hoxml_context_t* context) {
             /* Element content is placed, in memory, after the tag and its terminator... */
             context->content = context->tag + hoxml_strlen(context->tag, context->encoding);
             /* ...which may be either one or two bytes, depending on encoding */
-            context->content += (context->encoding >= HOXML_ENC_UTF_16_BE ? 2 : 1);
+            context->content +=
+                context->encoding == HOXML_ENC_UTF_16_LE || context->encoding == HOXML_ENC_UTF_16_BE ? 2 : 1;
              /* Closing an element means one less level of nesting so decrement the depth after returning */
             HOXML_STACK->flags |= HOXML_FLAG_DECREMENT_DEPTH;
             return HOXML_ELEMENT_END;
@@ -1271,7 +1296,7 @@ hoxml_character_t hoxml_decode_character(const char* str, size_t str_length, int
 
     switch (encoding) {
     case HOXML_ENC_UNKNOWN:
-        c.codepoint = str[0];
+        c.codepoint = (unsigned)(str[0] & 0xFF);
         break;
     case HOXML_ENC_UTF_8:
         if (c.bytes == 1) {
@@ -1297,20 +1322,20 @@ hoxml_character_t hoxml_decode_character(const char* str, size_t str_length, int
     case HOXML_ENC_UTF_16_BE:
         if (c.bytes == 2) {
             /* Concatenate the two bytes together to retrieve the original value */
-            c.codepoint = ((unsigned)str[0] << 8) | ((unsigned)str[1] << 0);
+            c.codepoint = ((unsigned)(str[0] & 0xFF) << 8) | ((unsigned)(str[1] & 0xFF) << 0);
         } else if (c.bytes == 4) {
             /* Four-byte UTF-16 characters are encoded as 110110XX XXXXXXXX 110111XX XXXXXXXX after first subtracting */
             /* 0x00010000 from the value. Here, that subtracted value is reconstructed and 0x00010000 is added back. */
-            c.codepoint = (((unsigned)(str[0] & 0x03) << 18) | ((unsigned)str[1] << 16) |
-                           ((unsigned)(str[2] & 0x03) << 8)  | ((unsigned)str[3] << 0)) + 0x00010000;
+            c.codepoint = (((unsigned)(str[0] & 0x03) << 18) | ((unsigned)(str[1] & 0xFF) << 10) |
+                           ((unsigned)(str[2] & 0x03) << 8)  | ((unsigned)(str[3] & 0xFF) << 0)) + 0x00010000;
         }
         break;
     case HOXML_ENC_UTF_16_LE:
         if (c.bytes == 2)
-            c.codepoint = ((unsigned)str[1] << 8) | ((unsigned)str[0] << 0);
+            c.codepoint = ((unsigned)(str[1] & 0xFF) << 8) | ((unsigned)(str[0] & 0xFF) << 0);
         else if (c.bytes == 4) {
-            c.codepoint = (((unsigned)(str[1] & 0x03) << 18) | ((unsigned)str[0] << 16) |
-                           ((unsigned)(str[3] & 0x03) << 8)  | ((unsigned)str[2] << 0)) + 0x00010000;
+            c.codepoint = (((unsigned)(str[1] & 0x03) << 18) | ((unsigned)(str[0] & 0xFF) << 10) |
+                           ((unsigned)(str[3] & 0x03) << 8)  | ((unsigned)(str[2] & 0xFF) << 0)) + 0x00010000;
         }
         break;
     }
@@ -1323,12 +1348,13 @@ hoxml_character_t hoxml_decode_character(const char* str, size_t str_length, int
 /* Encode the given character codepoint to the given character encoding */
 hoxml_character_t hoxml_encode_character(unsigned codepoint, int encoding) {
     hoxml_character_t c;
+    char* str;
     c.codepoint = codepoint;
     c.encoded = 0;
     c.bytes = 0;
 
     /* This variable will make it easier to assign values to 'c.endoded' without difficult-to-read casts */
-    char* str = (char*)&(c.encoded);
+    str = (char*)&(c.encoded);
 
     switch (encoding) {
     case HOXML_ENC_UNKNOWN: /* If the encoding is somehow not specified, assume UTF-8 */
@@ -1342,22 +1368,22 @@ hoxml_character_t hoxml_encode_character(unsigned codepoint, int encoding) {
             /* bytes individually for the sake of endianness where UTF-8 is big endian. The codepoint is masked in */
             /* order to zero any bits that are not used in the byte being assigned, then shifted all the way to the */
             /* right. The prefixed "0xC0" and "0x80" bitwise ORs prepend the UTF-8 markers 110 and 10, respectively. */
-            str[0] = 0xC0 | (char)((codepoint & 0x0000007C0) >> 6); /* 110AAAAAA */
-            str[1] = 0x80 | (char)((codepoint & 0x0000000FF) >> 0); /* 10BBBBBB */
+            str[0] = (char)0xC0 | (char)((codepoint & 0x0000007C0) >> 6); /* 110AAAAAA */
+            str[1] = (char)0x80 | (char)((codepoint & 0x0000000FF) >> 0); /* 10BBBBBB */
             c.bytes = 2;
         } else if ((codepoint >= 0x00000800 && codepoint <= 0x0000D7FF) ||
                 (codepoint >= 0x0000E000 && codepoint <= 0x0000FFFF)) {
             /* For a codepoint with bits AAAABBBB BBCCCCCC we want 1110AAAA 10BBBBBB 10CCCCCC */
-            str[0] = 0xE0 | (char)((codepoint & 0x0000F000) >> 12); /* 1110AAAA */
-            str[1] = 0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10BBBBBB */
-            str[2] = 0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10CCCCCC */
+            str[0] = (char)0xE0 | (char)((codepoint & 0x0000F000) >> 12); /* 1110AAAA */
+            str[1] = (char)0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10BBBBBB */
+            str[2] = (char)0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10CCCCCC */
             c.bytes = 3;
         } else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF) {
             /* For a codepoint with bits XXXAAABB BBBBCCCC CCDDDDDD we want 11110AAA 10BBBBBB 10CCCCCC 10DDDDDD */
-            str[0] = 0xF0 | (char)((codepoint & 0x001C0000) >> 18); /* 11110AAA */
-            str[1] = 0x80 | (char)((codepoint & 0x0003F000) >> 12); /* 10BBBBBB */
-            str[2] = 0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10CCCCCC */
-            str[3] = 0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10DDDDDD */
+            str[0] = (char)0xF0 | (char)((codepoint & 0x001C0000) >> 18); /* 11110AAA */
+            str[1] = (char)0x80 | (char)((codepoint & 0x0003F000) >> 12); /* 10BBBBBB */
+            str[2] = (char)0x80 | (char)((codepoint & 0x00000FC0) >> 6);  /* 10CCCCCC */
+            str[3] = (char)0x80 | (char)((codepoint & 0x0000003F) >> 0);  /* 10DDDDDD */
             c.bytes = 4;
         } else /* If the codepoint is not valid */
             c.bytes = 0; /* Don't even try */
@@ -1372,10 +1398,10 @@ hoxml_character_t hoxml_encode_character(unsigned codepoint, int encoding) {
             /* to the form 110110AA BBBBBBBB 110111CC DDDDDDDD. When decoded, as per UTF-16, 0x00010000 is added. */
             /* The prefixed "0xD8" and "0xDC" bitwise ORs prepend the UTF-16 markers 110110 and 110111, respectively. */
             codepoint -= 0x00010000;
-            str[0] = 0xD8 | (char)((codepoint & 0x000C0000) >> 20); /* 110110AA */
-            str[1] =        (char)((codepoint & 0x0003FC00) >> 18); /* BBBBBBBB */
-            str[2] = 0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
-            str[3] =        (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
+            str[1] = (char)0xD8 | (char)((codepoint & 0x000C0000) >> 18); /* 110110AA */
+            str[0] =              (char)((codepoint & 0x0003FC00) >> 10); /* BBBBBBBB */
+            str[3] = (char)0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
+            str[2] =              (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
             c.bytes = 4;
         } else /* If the codepoint is not valid */
             c.bytes = 0; /* Don't even try */
@@ -1389,10 +1415,10 @@ hoxml_character_t hoxml_encode_character(unsigned codepoint, int encoding) {
             c.bytes = 2;
         } else if (codepoint >= 0x00010000 && codepoint <= 0x0010FFFF) {
             codepoint -= 0x00010000;
-            str[3] = 0xD8 | (char)((codepoint & 0x000C0000) >> 20); /* 110110AA */
-            str[2] =        (char)((codepoint & 0x0003FC00) >> 18); /* BBBBBBBB */
-            str[1] = 0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
-            str[0] =        (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
+            str[2] = (char)0xD8 | (char)((codepoint & 0x000C0000) >> 18); /* 110110AA */
+            str[3] =              (char)((codepoint & 0x0003FC00) >> 10); /* BBBBBBBB */
+            str[0] = (char)0xDC | (char)((codepoint & 0x00000300) >> 8);  /* 110111CC */
+            str[1] =              (char)((codepoint & 0x000000FF) >> 0);  /* DDDDDDDD */
             c.bytes = 4;
         } else
             c.bytes = 0;
@@ -1404,13 +1430,17 @@ hoxml_character_t hoxml_encode_character(unsigned codepoint, int encoding) {
 
 /* Given a reference string with the given encoding, return an equivalent string encoding using ASCII */
 char* hoxml_to_ascii(const char* str, int encoding) {
+    size_t ascii_index;
+    const char* it;
+    hoxml_character_t c;
+
     /* This is only for references which have a maximum length so this static array will always be large enough */
     static char ascii[16];
     memset(ascii, 0, sizeof(ascii));
 
-    size_t ascii_index = 0; /* Current index in the ASCII string */
-    const char* it = str;
-    hoxml_character_t c = hoxml_decode_character(it, 65535, encoding);
+    ascii_index = 0; /* Current index in the ASCII string */
+    it = str;
+    c = hoxml_decode_character(it, 65535, encoding);
 
     /* While we haven't iterated up to a null terminator AND not beyond the size of the result array */
     while (c.codepoint != '\0' && ascii_index < sizeof(ascii)) {
@@ -1450,7 +1480,7 @@ int hoxml_strcmp(const char* str1, int encoding1, const char* str2, const int en
     hoxml_character_t c2 = hoxml_decode_character(it2, 65535, encoding2);
 
     while (c1.codepoint != '\0' && c2.codepoint != '\0') { /* While neither iterator has reached a null terminator */
-        /* If, accounting for sensitivity, the charcters are not equal */
+        /* If, accounting for sensitivity, the characters are not equal */
         if ((sensitivity == HOXML_CASE_INSENSITIVE && HOXML_TO_LOWER(c1.codepoint) != HOXML_TO_LOWER(c2.codepoint)) ||
                 (sensitivity == HOXML_CASE_SENSITIVE && c1.codepoint != c2.codepoint)) {
             return 0;
