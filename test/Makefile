@@ -28,7 +28,7 @@ else ifeq ($(STD),c++11)
 	CC = g++
 endif
 
-CFLAGS = -std=$(STD) -Wall -Wno-missing-braces
+CFLAGS = -std=$(STD) -Wall -Wextra -Wpedantic
 
 ifeq ($(STD),c99)
 	CFLAGS += -D_DEFAULT_SOURCE

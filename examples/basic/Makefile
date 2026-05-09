@@ -49,10 +49,11 @@ endif
 # Define compiler flags: CFLAGS
 #-----------------------------------------------------------------------------------------------------------------------
 # -std=$(STD)           defines the C or C++ language mode (
-# -Wall                 turns on most, but not all, compiler warnings
-# -Wno-missing-braces   ignore invalid warning (GCC bug 53119)
+# -Wall                 enables warnings for things that may, but won't necessarily, cause problems
+# -Wextra               enables warnings for things that aren't likely to cause problems but are likely unnecessary
+# -Wpedantic            enables adherence to the language standard (C99, C++11)
 # -O0, -O2              defines optimization level
-CFLAGS = -std=$(STD) -Wall -Wno-missing-braces
+CFLAGS = -std=$(STD) -Wall -Wextra -Wpedantic
 
 ifeq ($(STD),c99)
 	# -D_DEFAULT_SOURCE   use with -std=c99 on Linux and PLATFORM_WEB, required for timespec
