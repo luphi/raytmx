@@ -1468,7 +1468,7 @@ void HandleElementBegin(RaytmxState *state, hoxml_context_t *hoxml)
         // <tile> elements can be children of <tileset> or <layer>. They are also not the same element in that they have
         // entirely different attributes and a tileset's <tile> may have children.
         if (state->tileset != NULL) state->tilesetTile = AddTilesetTile(state);
-        // Layer <tile>s are added during attribute handling because they provide a GID attribute and nothing else.
+        else if (state->tileLayer != NULL) state->tileLayer->tilesLength = 0;
     }
     else if (strcmp(hoxml->tag, "animation") == 0)
     {
@@ -1740,9 +1740,14 @@ void HandleAttribute(RaytmxState *state, hoxml_context_t *hoxml)
             else if (strcmp(hoxml->attribute, "width") == 0) state->tilesetTile->width = atoi(hoxml->value);
             else if (strcmp(hoxml->attribute, "height") == 0) state->tilesetTile->height = atoi(hoxml->value);
         }
-        else { // If the <tile> corresponds to a layer tile.
-            if (strcmp(hoxml->attribute, "gid") == 0)
-                AddTileLayerTile(state, (uint32_t)strtoul(hoxml->value, NULL, 10));
+        else if (state->tileLayer != NULL) { // If the <tile> corresponds to a layer tile.
+            if (strcmp(hoxml->attribute, "gid") == 0) {
+                const uint32_t rawGid = (uint32_t)strtoul(hoxml->value, NULL, 10);
+                AddTileLayerTile(state, rawGid);
+                // The length property is used as a temporary variable when parsing tile layers. If a <tile> ends
+                // without this assigned with a GID, the empty "<tile/>" implies a tile with GID zero should be added.
+                state->tileLayer->tilesLength = rawGid;
+            }
         }
     }
     else if (strcmp(hoxml->tag, "frame") == 0)
@@ -2340,7 +2345,7 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
     }
     else if (strcmp(hoxml->tag, "tile") == 0)
     {
-        if (state->tilesetTile != NULL)
+        if (state->tilesetTile != NULL) // If a tileset <tile> ended.
         {
             // Apply default values for the attribute(s) that have default values that aren't zero or null.
             if (state->tilesetTile->classString == NULL) // If this <tile> didn't have a 'class' attribute.
@@ -2357,6 +2362,16 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                 if (state->tilesetTile->height == 0) state->tilesetTile->height = state->tilesetTile->image.height;
             }
             state->tilesetTile = NULL;
+        }
+        else if (state->tileLayer != NULL) // If a tile layer <tile> ended.
+        {
+            if (state->tileLayer->tilesLength == 0) // If the length wasn't assigned with a GID.
+            {
+                // Unlike other tile layer formats, this one with its series of <tile> elements implies a tile with GID
+                // zero by omitting the "gid" attribute. This means some tiles will explicitly name a GID with e.g.
+                // <tile gid="12"/> but this case is triggered with an empty <tile/> without the "gid" attribute.
+                AddTileLayerTile(state, 0);
+            }
         }
     }
     else if (strcmp(hoxml->tag, "data") == 0)
