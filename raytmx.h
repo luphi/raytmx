@@ -702,7 +702,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, in
 void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces);
 void StringCopy(char *destination, const char *source);
 TmxProperty *AddProperty(RaytmxState *state);
-void AddTileLayerTile(RaytmxState *state, uint32_t gid);
+void AddTileLayerTile(RaytmxState *state, uint32_t rawGid);
 TmxTileset *AddTileset(RaytmxState *state);
 TmxTilesetTile *AddTilesetTile(RaytmxState *state);
 TmxAnimationFrame *AddAnimationFrame(RaytmxState *state);
@@ -1740,8 +1740,10 @@ void HandleAttribute(RaytmxState *state, hoxml_context_t *hoxml)
             else if (strcmp(hoxml->attribute, "width") == 0) state->tilesetTile->width = atoi(hoxml->value);
             else if (strcmp(hoxml->attribute, "height") == 0) state->tilesetTile->height = atoi(hoxml->value);
         }
-        else // If the <tile> corresponds to a layer tile.
-            if (strcmp(hoxml->attribute, "gid") == 0) AddTileLayerTile(state, atoi(hoxml->value));
+        else { // If the <tile> corresponds to a layer tile.
+            if (strcmp(hoxml->attribute, "gid") == 0)
+                AddTileLayerTile(state, (uint32_t)strtoul(hoxml->value, NULL, 10));
+        }
     }
     else if (strcmp(hoxml->tag, "frame") == 0)
     {
@@ -2510,7 +2512,8 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                     // If iteration was paused by a comma, move to the next character so it's ignored next iteration.
                     if (*iter == ',') iter++;
 
-                    AddTileLayerTile(state, atoi(valueStr)); // Read the value as an integer GID.
+                    // Interpret the value as an unsigned long and add it, a raw GID, to the layer.
+                    AddTileLayerTile(state, (uint32_t)strtoul(valueStr, NULL, 10));
                 }
             }
 
@@ -4572,10 +4575,10 @@ TmxProperty *AddProperty(RaytmxState *state)
     return &(node->property);
 }
 
-void AddTileLayerTile(RaytmxState *state, uint32_t gid)
+void AddTileLayerTile(RaytmxState *state, uint32_t rawGid)
 {
     RaytmxTileLayerTileNode *node = (RaytmxTileLayerTileNode *)MemAllocZero(sizeof(RaytmxTileLayerTileNode));
-    node->gid = gid;
+    node->gid = rawGid;
 
     // Use this node as the root if there is no root. Append it to the tail otherwise.
     if (state->layerTilesRoot == NULL) state->layerTilesRoot = node;
