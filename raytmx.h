@@ -749,6 +749,13 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
     map->parallaxOriginY = state.mapParallaxOriginY;
     map->hasBackgroundColor = state.mapHasBackgroundColor;
 
+    if (state.mapProperties != NULL) // If the map itself has properties.
+    {
+        // Add the properties array to the map.
+        map->properties = state.mapProperties;
+        map->propertiesLength = state.mapPropertiesLength;
+    }
+
     uint32_t gidsToTilesLength = 0; // Can also be seen as the last GID.
     if (state.tilesetsRoot != NULL) // If there is at least one tileset.
     {
