@@ -787,6 +787,9 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
             if (gidsToTilesLength < tileset.lastGid + 1) gidsToTilesLength = tileset.lastGid + 1;
             // Note: GIDs start at 1 so the length is the last GID + 1.
 
+            // TODO: Find the greatest ID for both cases above. "Collection of images" tilesets can also have IDs
+            //       exceeding their number of tiles. So a collection of three tiles may have IDs 1, 2, 5.
+
             tilesets[i] = tileset;
             tilesetIter = tilesetIter->next;
         }
@@ -859,6 +862,8 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
                     const uint32_t gid = id + tileset->firstGid;
                     const uint32_t x = id%tileset->columns;
                     const uint32_t y = id/tileset->columns;
+                    if (gid >= gidsToTilesLength) continue; // Bounds check.
+
                     gidsToTiles[gid].gid = gid; // Tell the tile its GID.
 
                     // If that source renctangle within the image was NOT explicitly defined.
@@ -892,11 +897,13 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
                     if (!tilesetTile.hasImage)
                     {
                         TraceLog(LOG_WARNING, "RAYTMX: Skipping tile %d of image collection tileset \"%s\" because "
-                            "it has no image", tilesetTile.id, tileset->name);
+                            "it has no image", tilesetTile.id, tileset->name != NULL ? tileset->name : "");
                         continue;
                     }
 
-                    const int32_t gid = tileset->firstGid + tilesetTile.id;
+                    const uint32_t gid = tileset->firstGid + tilesetTile.id;
+                    if (gid >= gidsToTilesLength) continue; // Bounds check.
+
                     gidsToTiles[gid].gid = gid;
                     gidsToTiles[gid].sourceRect.x = (float)tilesetTile.x; // Defaults to, and probably is, zero.
                     gidsToTiles[gid].sourceRect.y = (float)tilesetTile.y; // Defaults to, and probably is, zero.
@@ -971,6 +978,8 @@ RAYTMX_DEC void DrawTMX(const TmxMap *map, const Camera2D *camera, const Rectang
 RAYTMX_DEC void DrawTMXLayers(const TmxMap *map, const Camera2D *camera, const Rectangle *viewport,
     const TmxLayer *layers, uint32_t layersLength, int posX, int posY, Color tint)
 {
+    if (map == NULL) return;
+
     // Pack some position and related information into an object to pass to various functions. At a minimum, this will
     // will determine the position each layer is drawn at. With a camera, this will also be used for parallax.
     RaytmxTransform transform;
@@ -981,7 +990,7 @@ RAYTMX_DEC void DrawTMXLayers(const TmxMap *map, const Camera2D *camera, const R
     transform.cameraOffset.x = 0.0f;
     transform.cameraOffset.y = 0.0f;
 
-    if ((map != NULL) && (camera != NULL)) // If the map, with its parallax origin, and a camera are available.
+    if (camera != NULL) // If a camera is being used.
     {
         // Calculate the camera's distance from the parallax origin. This origin is the reference point for parallax
         // scrolling. The amount a parallaxed layer scrolls is proportion to this distance and some constant factor.
@@ -1001,7 +1010,7 @@ RAYTMX_DEC void AnimateTMX(TmxMap *map)
     // Iterate through the tiles, searching for those that are animations.
     for (uint32_t gid = 0; gid < map->gidsToTilesLength; gid++)
     {
-        TmxTile *tile = &map->gidsToTiles[gid]; // A pointer is used in case the frame time needs to be reassigned.
+        TmxTile *tile = &(map->gidsToTiles[gid]); // A pointer is used in case the frame time needs to be reassigned.
 
         // If the GID maps to a valid tile, that tile is an animation, and the bounds check passes.
         if (tile->gid > 0 && tile->hasAnimation && tile->frameIndex < tile->animation.framesLength)
@@ -1107,6 +1116,7 @@ TmxObject CreatePolygonTMXObject(Vector2 *points, int pointCount, Rectangle *aab
 {
     TmxObject object;
     memset(&object, 0, sizeof(TmxObject));
+    if ((points == NULL) || (pointCount < 3)) return object;
 
     object.type = OBJECT_TYPE_POLYGON;
 
@@ -1260,6 +1270,8 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags)
 RaytmxExternalTileset LoadTSX(const char *fileName)
 {
     RaytmxExternalTileset externalTileset = { ZERO_INIT };
+    if (fileName == NULL) return externalTileset; // If no file name was given, return immediately with zeroed values.
+
     RaytmxState state;
     memset(&state, 0, sizeof(RaytmxState));
     state.format = FORMAT_TSX;
@@ -1294,6 +1306,8 @@ RaytmxExternalTileset LoadTSX(const char *fileName)
 RaytmxObjectTemplate LoadTX(const char *fileName)
 {
     RaytmxObjectTemplate objectTemplate = { ZERO_INIT };
+    if (fileName == NULL) return objectTemplate; // If no file name was given, return immediately with zeroed values.
+
     RaytmxState state;
     memset(&state, 0, sizeof(RaytmxState));
     state.format = FORMAT_TX;
@@ -1322,7 +1336,7 @@ RaytmxObjectTemplate LoadTX(const char *fileName)
     if (state.tilesetsRoot != NULL) // If there is at least one tileset.
     {
         // Object templates may have a tileset. This is for cases where the object references a tile (i.e. its 'gid'
-        // attribute is set).  Copy the root tileset so it can be returned.
+        // attribute is set). Copy the root tileset so it can be returned.
         objectTemplate.tileset = state.tilesetsRoot->tileset;
         objectTemplate.hasTileset = true;
 
@@ -1343,6 +1357,8 @@ RaytmxObjectTemplate LoadTX(const char *fileName)
 
 void ParseDocument(RaytmxState *state, const char *fileName)
 {
+    if ((state == NULL) || (fileName == NULL)) return; // Exit immediately if either required parameter is null.
+
     char *content = LoadFileText(fileName);
     if (content == NULL)
     {
@@ -1423,7 +1439,7 @@ void ParseDocument(RaytmxState *state, const char *fileName)
 
 void HandleElementBegin(RaytmxState *state, hoxml_context_t *hoxml)
 {
-    if ((state == NULL) || (hoxml == NULL)) return;
+    if ((state == NULL) || (hoxml == NULL)) return; // Exit immediately if either required parameter is null.
 
     if (strcmp(hoxml->tag, "map") == 0) // Unused. Included for readability.
         ;
@@ -1575,7 +1591,7 @@ void HandleElementBegin(RaytmxState *state, hoxml_context_t *hoxml)
 
 void HandleAttribute(RaytmxState *state, hoxml_context_t *hoxml)
 {
-    if ((state == NULL) || (hoxml == NULL)) return;
+    if ((state == NULL) || (hoxml == NULL)) return; // Exit immediately if either required parameter is null.
 
     if (strcmp(hoxml->tag, "map") == 0)
     {
@@ -2046,7 +2062,7 @@ void HandleAttribute(RaytmxState *state, hoxml_context_t *hoxml)
 
 void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
 {
-    if ((state == NULL) || (hoxml == NULL)) return;
+    if ((state == NULL) || (hoxml == NULL)) return; // Exit immediately if either required parameter is null.
 
     // If the element is one of the layer types which share some common attributes that may need default strings.
     if ((strcmp(hoxml->tag, "layer") == 0) || (strcmp(hoxml->tag, "objectgroup") == 0) ||
@@ -2582,7 +2598,7 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
             RaytmxObjectSortingNode *sortingIter = NULL;
             RaytmxObjectSortingNode *sortingTemp = NULL;
             RaytmxObjectSortingNode *newSortingNode = NULL;
-            for (uint32_t i = 0; objectsIter != NULL; i++)
+            for (uint32_t i = 0; (i < state->objectsLength) && (objectsIter != NULL); i++)
             {
                 objects[i] = objectsIter->object;
 
@@ -2768,9 +2784,9 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                                 (TmxProperty *)MemAllocZero(sizeof(TmxProperty)*propertiesLength);
                             state->object->propertiesLength = propertiesLength;
 
-                            // Copy the TmxProperty entires into the array and free the nodes while we're at it.
+                            // Copy the TmxProperty entries into the array and free the nodes while we're at it.
                             RaytmxPropertyNode *propertiesIter = propertiesRoot;
-                            for (uint32_t i = 0; propertiesIter != NULL; i++)
+                            for (uint32_t i = 0; (i < propertiesLength) && (propertiesIter != NULL); i++)
                             {
                                 state->object->properties[i] = propertiesIter->property;
                                 RaytmxPropertyNode *propertiesTemp = propertiesIter;
@@ -3010,11 +3026,11 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                             uint32_t numSpaces = 0;
                             for (uint32_t j = 0; lines[i].content[j] != '\0'; j++)
                                 if (isspace(lines[i].content[j])) numSpaces++;
-                            size_t length = strlen(lines[i].content);
+                            size_t contentLength = strlen(lines[i].content);
                             if (numSpaces > 0) // If there's more than one word in the line.
                             {
                                 // Measure the dimensions of a single space using this line's configuration.
-                                Vector2 originalTextSize = textSize;
+                                const Vector2 originalTextSize = textSize;
                                 textSize = MeasureTextEx(font, " ", (float)objectText->pixelSize, lines[i].spacing);
 
                                 // Calculate the number of new spaces to add between words, per existing space.
@@ -3024,16 +3040,17 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                                     (uint32_t)floor((idealNumAdditionalSpaces - (float)numSpaces)/(float)numSpaces);
 
                                 // Create a new string with the additional space.
-                                const size_t justifiedLength = length + (numSpacesToAddPer*numSpaces);
+                                const size_t justifiedLength = contentLength + (numSpacesToAddPer*numSpaces);
                                 char *justifiedContent = (char *)MemAllocZero((unsigned int)justifiedLength + 1);
                                 uint32_t sourceIndex = 0;
                                 uint32_t destinationIndex = 0;
-                                while (lines[i].content[sourceIndex] != '\0')
+                                while ((lines[i].content[sourceIndex] != '\0') &&
+                                    (destinationIndex <= justifiedLength) && (sourceIndex < contentLength))
                                 {
                                     justifiedContent[destinationIndex++] = lines[i].content[sourceIndex];
 
                                     // If the current character is whitespace but the next one is not.
-                                    if ((sourceIndex < length) && !isspace(lines[i].content[sourceIndex]) &&
+                                    if ((sourceIndex < contentLength) && !isspace(lines[i].content[sourceIndex]) &&
                                         isspace(lines[i].content[sourceIndex + 1]))
                                     {
                                         // Add 'numSpacesToAddPer' spaces to the justified string.
@@ -3046,13 +3063,13 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                                 // Free the original content buffer and replace it with the justified one.
                                 MemFree(lines[i].content);
                                 lines[i].content = justifiedContent;
-                                length = justifiedLength;
+                                contentLength = justifiedLength;
                             }
 
                             // Calculate a spacing, between each letter, with which the drawn text will span the full
                             // width of the bounds.
                             textSize = MeasureTextEx(font, lines[i].content, (float)objectText->pixelSize, 0.0f);
-                            lines[i].spacing = (float)((object->width - textSize.x)/(double)(length - 1));
+                            lines[i].spacing = (float)((object->width - textSize.x)/(double)(contentLength - 1));
                         }
                         else // if (objectText->halign == HORIZONTAL_ALIGNMENT_LEFT)
                             lines[i].position.x = (float)object->x;
@@ -3100,6 +3117,8 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
 
 void FreeStateLayers(RaytmxLayerNode *layers)
 {
+    if (layers == NULL) return;
+
     RaytmxLayerNode *layersIter = layers;
     RaytmxLayerNode *layersTemp = NULL;
     while (layersIter != NULL)
@@ -3319,8 +3338,8 @@ void FreeLayer(TmxLayer layer)
         } break;
         case LAYER_TYPE_OBJECT_GROUP:
         {
-            for (uint32_t j = 0; j < layer.exact.objectGroup.objectsLength; j++)
-                FreeObject(layer.exact.objectGroup.objects[j]);
+            for (uint32_t i = 0; i < layer.exact.objectGroup.objectsLength; i++)
+                FreeObject(layer.exact.objectGroup.objects[i]);
             MemFree(layer.exact.objectGroup.objects);
         } break;
         case LAYER_TYPE_IMAGE_LAYER:
@@ -3346,7 +3365,7 @@ void FreeObject(TmxObject object)
     {
         if (object.text->lines != NULL)
         {
-            for (uint32_t j = 0; j < object.text->linesLength; j++) FreeString(object.text->lines[j].content);
+            for (uint32_t i = 0; i < object.text->linesLength; i++) FreeString(object.text->lines[i].content);
             MemFree(object.text->lines);
         }
 
@@ -4232,16 +4251,17 @@ bool CheckCollisionTMXObjectGroupObject(TmxObjectGroup group, TmxObject object, 
 void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset *tilesets, uint32_t tilesetsLength,
     int numSpaces)
 {
-    for (uint32_t i = 0; i < tilesetsLength; i++)
+    for (uint32_t i = 0; (tilesets != NULL) && (i < tilesetsLength); i++)
     {
         const TmxTileset tileset = tilesets[i];
 
         if (i == 0) TraceLog(logLevel, "tilesets:");
-        TraceLog(logLevel, "  \"%s\":", tileset.name);
+        TraceLog(logLevel, "  \"%s\":", tileset.name != NULL ? tileset.name : "");
         TraceLog(logLevel, "    first GID: %u", tileset.firstGid);
         TraceLog(logLevel, "    last GID: %u", tileset.lastGid);
         if (tileset.source != NULL) TraceLog(logLevel, "    source: \"%s\"", tileset.source);
-        if (tileset.classString[0] != '\0') TraceLog(logLevel, "    class: \"%s\"", tileset.classString);
+        if ((tileset.classString != NULL) && (tileset.classString[0] != '\0'))
+            TraceLog(logLevel, "    class: \"%s\"", tileset.classString);
         TraceLog(logLevel, "    tile width: %u", tileset.tileWidth);
         TraceLog(logLevel, "    tile height: %u", tileset.tileHeight);
         if (tileset.spacing != 0) TraceLog(logLevel, "    spacing: %u", tileset.spacing);
@@ -4272,14 +4292,14 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset *t
         if (tileset.hasImage)
         {
             TraceLog(logLevel, "    image:");
-            TraceLog(logLevel, "      source: \"%s\"", tileset.image.source);
+            TraceLog(logLevel, "      source: \"%s\"", tileset.image.source != NULL ? tileset.image.source : "");
             if (tileset.image.hasTrans) TraceLog(logLevel, "      trans: 0x%08X", tileset.image.trans);
             if (tileset.image.width != 0) TraceLog(logLevel, "      width: %u", tileset.image.width);
             if (tileset.image.height != 0) TraceLog(logLevel, "      height: %u", tileset.image.height);
             TraceLog(logLevel, "      texture (ID): %u", tileset.image.texture.id);
         }
 
-        for (uint32_t j = 0; j < tileset.tilesLength; j++)
+        for (uint32_t j = 0; (tileset.tiles != NULL) && (j < tileset.tilesLength); j++)
         {
             const TmxTilesetTile tile = tileset.tiles[j];
 
@@ -4288,11 +4308,11 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset *t
 
             if (tile.hasAnimation)
             {
-                for (uint32_t i = 0; i < tile.animation.framesLength; i++)
+                for (uint32_t i = 0; (tile.animation.frames != NULL) && (i < tile.animation.framesLength); i++)
                 {
                     if (i == 0) TraceLog(logLevel, "      frames:");
                     TraceLog(logLevel, "        (G)ID: %u", tile.animation.frames[i].gid);
-                    if (tileset.classString[0] != '\0')
+                    if ((tileset.classString != NULL) && (tileset.classString[0] != '\0'))
                         TraceLog(logLevel, "          class: \"%s\"", tileset.classString);
                     TraceLog(logLevel, "          duration: %f", tile.animation.frames[i].duration);
                 }
@@ -4307,7 +4327,7 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset *t
                 if (tile.width != tile.image.width) TraceLog(logLevel, "      width: %u", tile.width);
                 if (tile.height != tile.image.height) TraceLog(logLevel, "      height: %u", tile.height);
                 TraceLog(logLevel, "      image:");
-                TraceLog(logLevel, "        source: \"%s\"", tile.image.source);
+                TraceLog(logLevel, "        source: \"%s\"", tile.image.source != NULL ? tile.image.source : "");
                 if (tile.image.hasTrans) TraceLog(logLevel, "        trans: 0x%08X", tile.image.trans);
                 if (tile.image.width != 0) TraceLog(logLevel, "        width: %u", tile.image.width);
                 if (tile.image.height != 0) TraceLog(logLevel, "        height: %u", tile.image.height);
@@ -4318,7 +4338,7 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset *t
             {
                 if (tmxLogFlags & LOG_SKIP_OBJECTS)
                     TraceLog(logLevel, "      skipping %u objects", tile.objectGroup.objectsLength);
-                else
+                else if (tile.objectGroup.objects != NULL)
                 {
                     TraceLog(logLevel, "      objects:");
                     for (uint32_t k = 0; k < tile.objectGroup.objectsLength; k++)
@@ -4339,7 +4359,7 @@ void TraceLogTMXProperties(int logLevel, TmxProperty *properties, uint32_t prope
     if (tmxLogFlags & LOG_SKIP_PROPERTIES) TraceLog(logLevel, "%sskipped %u properties", padding, propertiesLength);
     else
     {
-        for (uint32_t i = 0; i < propertiesLength; i++)
+        for (uint32_t i = 0; (properties != NULL) && (i < propertiesLength); i++)
         {
             const TmxProperty property = properties[i];
 
@@ -4350,7 +4370,8 @@ void TraceLogTMXProperties(int logLevel, TmxProperty *properties, uint32_t prope
                 case PROPERTY_TYPE_STRING:
                 case PROPERTY_TYPE_FILE:
                 {
-                    TraceLog(logLevel, "%s  \"%s\": \"%s\"", padding, property.name, property.stringValue);
+                    TraceLog(logLevel, "%s  \"%s\": \"%s\"", padding, property.name != NULL ? property.name : "",
+                        property.stringValue);
                 } break;
                 case PROPERTY_TYPE_INT:
                 case PROPERTY_TYPE_OBJECT:
@@ -4388,7 +4409,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, in
         uint32_t numTileLayers = 0;
         uint32_t numObjectGroups = 0;
         uint32_t numImageLayers = 0;
-        for (uint32_t i = 0; i < layersLength; i++)
+        for (uint32_t i = 0; (layers != NULL) && (i < layersLength); i++)
         {
             const TmxLayer layer = layers[i];
 
@@ -4401,7 +4422,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, in
                 ((layer.type == LAYER_TYPE_IMAGE_LAYER) && !(tmxLogFlags & LOG_SKIP_IMAGE_LAYERS)))
             {
                 // Log the attributes of this layer common to all layers.
-                TraceLog(logLevel, "%s  \"%s\":", padding, layer.name);
+                TraceLog(logLevel, "%s  \"%s\":", padding, layer.name != NULL ? layer.name : "");
                 switch (layer.type)
                 {
                     case LAYER_TYPE_TILE_LAYER: TraceLog(logLevel, "%s    type: tile layer", padding); break;
@@ -4411,7 +4432,8 @@ void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, in
                 }
                 if (layer.id > 0) TraceLog(logLevel, "%s    ID: %u", padding, layer.id);
                 if (!layer.visible) TraceLog(logLevel, "%s    visible: false", padding);
-                if (layer.classString[0] != '\0') TraceLog(logLevel, "%s    class: \"%s\"", padding, layer.classString);
+                if ((layer.classString != NULL) && (layer.classString[0] != '\0'))
+                    TraceLog(logLevel, "%s    class: \"%s\"", padding, layer.classString);
                 if (layer.offsetX != 0) TraceLog(logLevel, "%s    offset X: %d", padding, layer.offsetX);
                 if (layer.offsetY != 0) TraceLog(logLevel, "%s    offset Y: %d", padding, layer.offsetY);
                 if (layer.parallaxX != 1.0) TraceLog(logLevel, "%s    parallax X: %f", padding, layer.parallaxX);
@@ -4471,7 +4493,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, in
                     }
                     if (tmxLogFlags & LOG_SKIP_OBJECTS)
                         TraceLog(logLevel, "%s    skipping %u objects", padding, layer.exact.objectGroup.objectsLength);
-                    else
+                    else if (layer.exact.objectGroup.objects != NULL)
                     {
                         for (uint32_t j = 0; j < layer.exact.objectGroup.objectsLength; j++)
                         {
@@ -4492,7 +4514,7 @@ void TraceLogTMXLayers(int logLevel, TmxLayer *layers, uint32_t layersLength, in
                         const TmxImage image = layer.exact.imageLayer.image;
 
                         TraceLog(logLevel, "%s    image:", padding);
-                        TraceLog(logLevel, "%s      source: \"%s\"", padding, image.source);
+                        TraceLog(logLevel, "%s      source: \"%s\"", padding, image.source != NULL ? image.source : "");
                         if (layer.exact.imageLayer.image.hasTrans)
                             TraceLog(logLevel, "%s      trans: 0x%08X", padding, image.trans);
                         if (layer.exact.imageLayer.image.width != 0)
@@ -4523,7 +4545,7 @@ void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces)
     StringCopyN(padding, "                ", numSpaces);
 
     TraceLog(logLevel, "%s      ID: %u", padding, object.id);
-    TraceLog(logLevel, "%s        name: \"%s\"", padding, object.name);
+    TraceLog(logLevel, "%s        name: \"%s\"", padding, object.name != NULL ? object.name : "");
     switch (object.type)
     {
         case OBJECT_TYPE_RECTANGLE: TraceLog(logLevel, "%s        type: quad", padding); break;
@@ -4535,7 +4557,8 @@ void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces)
         case OBJECT_TYPE_TILE: TraceLog(logLevel, "%s        type: tile", padding); break;
     }
 
-    if (object.typeString[0] != '\0') TraceLog(logLevel, "%s        type: \"%s\"", padding, object.typeString);
+    if ((object.typeString != NULL) && (object.typeString[0] != '\0'))
+        TraceLog(logLevel, "%s        type: \"%s\"", padding, object.typeString);
     if (object.x != 0.0) TraceLog(logLevel, "%s        x: %f", padding, object.x);
     if (object.y != 0.0) TraceLog(logLevel, "%s        y: %f", padding, object.y);
     if (object.width != 0.0) TraceLog(logLevel, "%s        width: %f", padding, object.width);
@@ -4544,7 +4567,7 @@ void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces)
     if (object.gid > 0) TraceLog(logLevel, "%s        GID: %u", padding, object.gid);
     if (!object.visible) TraceLog(logLevel, "%s        visible: false", padding);
     if (object.templateString != NULL) TraceLog(logLevel, "%s        template: \"%s\"", padding, object.templateString);
-    for (uint32_t k = 0; k < object.pointsLength; k++)
+    for (uint32_t k = 0; (object.points != NULL) && (k < object.pointsLength); k++)
     {
         if (k == 0) TraceLog(logLevel, "%s        points:", padding);
         TraceLog(logLevel, "%s          [%f, %f]", padding, object.points[k].x, object.points[k].y);
@@ -4553,7 +4576,8 @@ void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces)
     TraceLogTMXProperties(logLevel, object.properties, object.propertiesLength, numSpaces + 8);
     if (object.text != NULL)
     {
-        TraceLog(logLevel, "%s        font family: \"%s\"", padding, object.text->fontFamily);
+        TraceLog(logLevel, "%s        font family: \"%s\"",
+            padding, object.text->fontFamily != NULL ? object.text->fontFamily : "");
         TraceLog(logLevel, "%s        pixel size: %u", padding, object.text->pixelSize);
         if (object.text->wrap) TraceLog(logLevel, "%s        wrap: true", padding);
         TraceLog(logLevel, "%s        color: 0x%08X", padding, object.text->color);
@@ -4579,13 +4603,15 @@ void TraceLogTMXObject(int logLevel, TmxObject object, int numSpaces)
             case VERTICAL_ALIGNMENT_BOTTOM: TraceLog(logLevel, "%s        vertical align: bottom", padding); break;
         }
 
-        if (object.text->content[0] != '\0')
+        if ((object.text->content != NULL) && (object.text->content[0] != '\0'))
             TraceLog(logLevel, "%s        content: \"%s\"", padding, object.text->content);
     }
 }
 
 TmxProperty *AddProperty(RaytmxState *state)
 {
+    if (state == NULL) return NULL;
+
     RaytmxPropertyNode *node = (RaytmxPropertyNode *)MemAllocZero(sizeof(RaytmxPropertyNode));
 
     // Use this node as the root if there is no root. Append it to the tail otherwise.
@@ -4599,6 +4625,8 @@ TmxProperty *AddProperty(RaytmxState *state)
 
 void AddTileLayerTile(RaytmxState *state, uint32_t rawGid)
 {
+    if (state == NULL) return;
+
     RaytmxTileLayerTileNode *node = (RaytmxTileLayerTileNode *)MemAllocZero(sizeof(RaytmxTileLayerTileNode));
     node->gid = rawGid;
 
@@ -4611,6 +4639,8 @@ void AddTileLayerTile(RaytmxState *state, uint32_t rawGid)
 
 TmxTileset *AddTileset(RaytmxState *state)
 {
+    if (state == NULL) return NULL;
+
     RaytmxTilesetNode *node = (RaytmxTilesetNode *)MemAllocZero(sizeof(RaytmxTilesetNode));
 
     // Use this node as the root if there is no root. Append it to the tail otherwise.
@@ -4624,6 +4654,8 @@ TmxTileset *AddTileset(RaytmxState *state)
 
 TmxTilesetTile *AddTilesetTile(RaytmxState *state)
 {
+    if (state == NULL) return NULL;
+
     RaytmxTilesetTileNode *node = (RaytmxTilesetTileNode *)MemAllocZero(sizeof(RaytmxTilesetTileNode));
 
     // Use this node as the root if there is no root. Append it to the tail otherwise.
@@ -4637,6 +4669,8 @@ TmxTilesetTile *AddTilesetTile(RaytmxState *state)
 
 TmxAnimationFrame *AddAnimationFrame(RaytmxState *state)
 {
+    if (state == NULL) return NULL;
+
     RaytmxAnimationFrameNode *node = (RaytmxAnimationFrameNode *)MemAllocZero(sizeof(RaytmxAnimationFrameNode));
 
     // Use this node as the root if there is no root. Append it to the tail otherwise.
@@ -4650,6 +4684,8 @@ TmxAnimationFrame *AddAnimationFrame(RaytmxState *state)
 
 TmxLayer *AddGenericLayer(RaytmxState *state, bool isGroup)
 {
+    if (state == NULL) return NULL;
+
     RaytmxLayerNode *node = (RaytmxLayerNode *)MemAllocZero(sizeof(RaytmxLayerNode));
     // There are some non-zero default values for several layer attributes.
     node->layer.opacity = 1.0;
@@ -4682,6 +4718,8 @@ TmxLayer *AddGenericLayer(RaytmxState *state, bool isGroup)
 
 TmxObject *AddObject(RaytmxState *state)
 {
+    if (state == NULL) return NULL;
+
     RaytmxObjectNode *node = (RaytmxObjectNode *)MemAllocZero(sizeof(RaytmxObjectNode));
     // <object> elements have one non-zero default value.
     node->object.visible = true;
@@ -4727,12 +4765,12 @@ void AppendLayerTo(TmxMap *map, RaytmxLayerNode *groupNode, RaytmxLayerNode *lay
     }
 }
 
-RaytmxCachedTextureNode *LoadCachedTexture(RaytmxState *raytmxState, const char *fileName)
+RaytmxCachedTextureNode *LoadCachedTexture(RaytmxState *state, const char *fileName)
 {
-    if ((raytmxState == NULL) || (fileName == NULL)) return NULL;
+    if ((state == NULL) || (fileName == NULL)) return NULL;
 
     // First try to find an already-loaded texture identified by the file name.
-    RaytmxCachedTextureNode *cachedTextureNode = raytmxState->texturesRoot;
+    RaytmxCachedTextureNode *cachedTextureNode = state->texturesRoot;
     while (cachedTextureNode != NULL)
     {
         // If the file name associated with the node matches the given file name.
@@ -4742,7 +4780,7 @@ RaytmxCachedTextureNode *LoadCachedTexture(RaytmxState *raytmxState, const char 
     // NOTE: If the function hasn't returned by this line, the texture is new and needs to be cached.
 
     // Try to load the texture.
-    const char *fullPath = JoinPath(raytmxState->documentDirectory, fileName);
+    const char *fullPath = JoinPath(state->documentDirectory, fileName);
     const Texture2D texture = loadTextureOverride? loadTextureOverride(fullPath) : LoadTexture(fullPath);
     if (texture.id == 0) // If loading the texture failed.
     {
@@ -4757,11 +4795,11 @@ RaytmxCachedTextureNode *LoadCachedTexture(RaytmxState *raytmxState, const char 
     cachedTextureNode->texture = texture;
 
     // Add to the cache. Use this node as the root if there is no root. Append it to the tail otherwise.
-    if (raytmxState->texturesRoot == NULL) raytmxState->texturesRoot = cachedTextureNode;
+    if (state->texturesRoot == NULL) state->texturesRoot = cachedTextureNode;
     else
     {
         // Iterate to the tail and append this new node.
-        RaytmxCachedTextureNode *cachedTextureIter = raytmxState->texturesRoot;
+        RaytmxCachedTextureNode *cachedTextureIter = state->texturesRoot;
         while (cachedTextureIter->next != NULL) cachedTextureIter = cachedTextureIter->next;
         cachedTextureIter->next = cachedTextureNode;
     }
@@ -4769,12 +4807,12 @@ RaytmxCachedTextureNode *LoadCachedTexture(RaytmxState *raytmxState, const char 
     return cachedTextureNode;
 }
 
-RaytmxCachedTemplateNode *LoadCachedTemplate(RaytmxState *raytmxState, const char *fileName)
+RaytmxCachedTemplateNode *LoadCachedTemplate(RaytmxState *state, const char *fileName)
 {
-    if ((raytmxState == NULL) || (fileName == NULL)) return NULL;
+    if ((state == NULL) || (fileName == NULL)) return NULL;
 
     // First try to find an already-loaded template identified by the file name.
-    RaytmxCachedTemplateNode *cachedTemplateNode = raytmxState->templatesRoot;
+    RaytmxCachedTemplateNode *cachedTemplateNode = state->templatesRoot;
     while (cachedTemplateNode != NULL)
     {
         // If the file name associated with the node matches the given file name.
@@ -4784,7 +4822,7 @@ RaytmxCachedTemplateNode *LoadCachedTemplate(RaytmxState *raytmxState, const cha
     // NOTE: If the function hasn't returned by this line, the template is new and needs to be cached.
 
     // Load the template from the external TX file.
-    const char *fullPath = JoinPath(raytmxState->documentDirectory, fileName);
+    const char *fullPath = JoinPath(state->documentDirectory, fileName);
     const RaytmxObjectTemplate objectTemplate = LoadTX(fullPath);
     if (!objectTemplate.isSuccess) // If loading the template failed.
     {
@@ -4802,7 +4840,7 @@ RaytmxCachedTemplateNode *LoadCachedTemplate(RaytmxState *raytmxState, const cha
     {
         // In cases where the template's object references a tile (i.e. its 'gid' attribute is set), the template will
         // have at most one tileset. Search the state object's list of tilesets and add this one if it's new.
-        RaytmxTilesetNode *tilesetsIter = raytmxState->tilesetsRoot;
+        RaytmxTilesetNode *tilesetsIter = state->tilesetsRoot;
         bool isNew = true;
         while (tilesetsIter != NULL)
         {
@@ -4824,17 +4862,17 @@ RaytmxCachedTemplateNode *LoadCachedTemplate(RaytmxState *raytmxState, const cha
 
         if (isNew)
         {
-            TmxTileset *tileset = AddTileset(raytmxState);
+            TmxTileset *tileset = AddTileset(state);
             *tileset = objectTemplate.tileset;
         }
     }
 
     // Add to the cache.
-    if (raytmxState->templatesRoot == NULL) raytmxState->templatesRoot = cachedTemplateNode;
+    if (state->templatesRoot == NULL) state->templatesRoot = cachedTemplateNode;
     else
     {
         // Iterate to the tail and append this new node.
-        RaytmxCachedTemplateNode *cachedTemplateIter = raytmxState->templatesRoot;
+        RaytmxCachedTemplateNode *cachedTemplateIter = state->templatesRoot;
         while (cachedTemplateIter->next != NULL) cachedTemplateIter = cachedTemplateIter->next;
         cachedTemplateIter->next = cachedTemplateNode;
     }
@@ -4845,6 +4883,7 @@ RaytmxCachedTemplateNode *LoadCachedTemplate(RaytmxState *raytmxState, const cha
 Color GetColorFromHexString(const char *hex)
 {
     Color color = BLACK; // { 0, 0, 0, 255 }.
+    if (hex == NULL) return color;
 
     const size_t length = strlen(hex);
     // If the hex string is too short to contain at least R, G, and B components.
@@ -4900,6 +4939,7 @@ const char *GetDirectoryPath2(const char *filePath)
 {
     static char directoryPath[260] = { ZERO_INIT }; // Max path length on Windows, the bottleneck, is 260 characters.
     memset(directoryPath, '\0', 260);
+    if (filePath == NULL) return directoryPath;
 
     size_t length = strlen(filePath);
     // Paths beginning with a Windows drive letter (C:\, D:\, etc.) or beginning with a slash are absolute paths.
@@ -4927,6 +4967,8 @@ const char *JoinPath(const char *prefix, const char *suffix)
 {
     static char joinedPath[260] = { ZERO_INIT }; // Max path length on Windows, the bottleneck, is 260 characters.
     memset(joinedPath, '\0', 260);
+    if ((prefix == NULL) || (suffix == NULL)) return joinedPath;
+
     StringCopy(joinedPath, prefix);
 
     const size_t prefixLength = strlen(prefix);
@@ -4949,6 +4991,8 @@ const char *JoinPath(const char *prefix, const char *suffix)
 
 void StringCopy(char *destination, const char *source)
 {
+    if ((destination == NULL) || (source == NULL)) return;
+
 #if (!defined _MSC_VER || defined _CRT_SECURE_NO_WARNINGS)
     // This is for build environments where "[M]icro[S]oft [C]ompiler [VER]sion" is not defined, meaning the compiler is
     // one other than MSVC, or where MSVC is being used but the security deprecation warning has been disabled. MSVC
@@ -4964,6 +5008,8 @@ void StringCopy(char *destination, const char *source)
 
 void StringCopyN(char *destination, const char *source, size_t number)
 {
+    if ((destination == NULL) || (source == NULL)) return;
+
 #if (!defined _MSC_VER || defined _CRT_SECURE_NO_WARNINGS)
     strncpy(destination, source, number);
 #else
@@ -4973,6 +5019,8 @@ void StringCopyN(char *destination, const char *source, size_t number)
 
 void StringConcatenate(char *destination, const char *source)
 {
+    if ((destination == NULL) || (source == NULL)) return;
+
 #if (!defined _MSC_VER || defined _CRT_SECURE_NO_WARNINGS)
     strcat(destination, source);
 #else
