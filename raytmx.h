@@ -768,27 +768,26 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
         {
             TmxTileset tileset = tilesetIter->tileset;
 
-            if (tileset.hasImage) // If the tileset has a shared image and implicitly defines tiles.
+            // There are a couple types of tilesets. In a typical case, a tileset has a single image that is implicitly
+            // sliced up to create a grid of tiles. The last ID in that grid can be known from the count of tiles.
+            // If the tileset has a single image and implicit tiles.
+            if (tileset.hasImage) tileset.lastGid = tileset.firstGid + tileset.tileCount - 1;
+
+            if (tileset.tilesLength > 0) // If the tileset has 1+ explicitly-defined tiles.
             {
-                // These tilesets implicitly have X tiles where X = <width in tiles> * <height in tiles>. But even these
-                // tilesets may have explicitly defined tiles for things like animations, or anything else. We need to
-                // know the greatest ID of those explicit tiles because they are allowed to have IDs that exceed the
-                // tileset's tile count and this affects global IDs, even in other tilesets.
+                // Find the greatest ID of these <tile> elements and calculate the last GID from it.
                 uint32_t greatestID = 0;
                 for (uint32_t i = 0; i < tileset.tilesLength; i++)
                     if (greatestID < tileset.tiles[i].id) greatestID = tileset.tiles[i].id;
-                // Determine the last GID, meaning the greatest GID value, from the greatest local ID and tile count.
-                if (greatestID >= tileset.tileCount) tileset.lastGid = tileset.firstGid + greatestID;
-                else tileset.lastGid = tileset.firstGid + tileset.tileCount - 1;
+                tileset.lastGid = tileset.firstGid + greatestID;
+                // Note: Both types of tilesets, typical with a grid and "collection of images," can have explicit
+                // <tile> definitions. The former often uses them for animations. The latter defines all of its tiles
+                // with a <tile> due to each specifying a separate image.
             }
-            else if (tileset.tilesLength > 0) // If the tileset is a "collection of images" with explicit tiles.
-                tileset.lastGid = tileset.firstGid + tileset.tiles[tileset.tilesLength - 1].id - 1;
 
+            // Update the length of the future GID-to-tile array from knowing the last GID.
             if (gidsToTilesLength < tileset.lastGid + 1) gidsToTilesLength = tileset.lastGid + 1;
             // Note: GIDs start at 1 so the length is the last GID + 1.
-
-            // TODO: Find the greatest ID for both cases above. "Collection of images" tilesets can also have IDs
-            //       exceeding their number of tiles. So a collection of three tiles may have IDs 1, 2, 5.
 
             tilesets[i] = tileset;
             tilesetIter = tilesetIter->next;
