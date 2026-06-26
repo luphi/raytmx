@@ -681,8 +681,8 @@ void FreeTileset(TmxTileset tileset);
 void FreeProperty(TmxProperty property);
 void FreeLayer(TmxLayer layer);
 void FreeObject(TmxObject object);
-bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle viewport, RaytmxTransform transform,
-    uint32_t *rawGid, TmxTile *tile, Rectangle *tileRect);
+bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, uint32_t *rawGid, TmxTile *tile,
+    Rectangle *tileRect);
 void DrawTMXLayersInternal(const TmxMap *map, const Camera2D *camera, const Rectangle *viewport, const TmxLayer *layers,
     uint32_t layersLength, RaytmxTransform transform, Color tint);
 void DrawTMXTileLayer(const TmxMap *map, Rectangle viewport, TmxLayer layer, RaytmxTransform transform, Color tint);
@@ -3374,21 +3374,13 @@ void FreeObject(TmxObject object)
 
 #define SIGN(x) ((x < 0)? -1 : +1)
 
-// Helper function that keeps an integer within a range, between some (inclusive) minimum and maximum values.
-int Clampi(int value, int minimum, int maximum)
-{
-    if (value < minimum) return minimum;
-    else if (value > maximum) return maximum;
-    else return value;
-}
-
-// Scary-looking helper function that does something simple: iterates through the visible tiles of a layer.
+// Scary-looking helper function that does something simple: iterates through the tiles of a layer.
 // Returns true while still iterating so it can be used like "while (IterateTileLayer()) { ... }".
 // Uses static variables to maintain state between calls. Pass NULL as the map or layers to reset the state.
 // Details of the current tile are assigned to output parameters, if passed a non-NULL address.
 // Iteration is done row-by-row.
-bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle viewport, RaytmxTransform transform,
-    uint32_t *rawGid, TmxTile *tile, Rectangle *tileRect)
+bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, uint32_t *rawGid, TmxTile *tile,
+    Rectangle *tileRect)
 {
     // Static variables whose values will persist between calls. These are needed to initialize and iterate.
     static const TmxTileLayer *currentLayer = NULL; // Tile layer being iterated.
@@ -3411,53 +3403,42 @@ bool IterateTileLayer(const TmxMap *map, const TmxTileLayer *layer, Rectangle vi
     {
         currentLayer = layer; // Remember this layer.
 
-        // Create an adjusted viewport that effectively removes the map's drawn position. With this, it doesn't need to
-        // be a factor in the math below.
-        const Rectangle viewport2 = { viewport.x - transform.position.x, viewport.y - transform.position.y,
-            viewport.width, viewport.height };
-
         switch (map->renderOrder)
         {
             case RENDER_ORDER_RIGHT_DOWN:
             {
                 // Start at the top-left, iterate right, then iterate down, ending at the bottom-right.
                 // In other words, this is the order in which English is read.
-                fromX = (int)viewport2.x/(int)map->tileWidth;
-                fromY = (int)viewport2.y/(int)map->tileHeight;
-                toX = (int)(viewport2.x + viewport2.width)/(int)map->tileWidth;
-                toY = (int)(viewport2.y + viewport2.height)/(int)map->tileHeight;
+                fromX = 0;
+                fromY = 0;
+                toX = (int)map->width - 1;
+                toY = (int)map->height - 1;
             } break;
             case RENDER_ORDER_RIGHT_UP:
             {
                 // Start at the bottom-left, iterate right, then iterate up, ending at the top-right.
-                fromX = (int)viewport2.x/(int)map->tileWidth;
-                fromY = (int)(viewport2.y + viewport2.height)/(int)map->tileHeight;
-                toX = (int)(viewport2.x + viewport2.width)/(int)map->tileWidth;
-                toY = (int)viewport2.y/(int)map->tileHeight;
+                fromX = 0;
+                fromY = (int)map->height - 1;
+                toX = (int)map->width - 1;
+                toY = 0;
             } break;
             case RENDER_ORDER_LEFT_DOWN:
             {
                 // Start at the top-right, iterate left, then iterate down, ending at the bottom-left.
-                fromX = (int)(viewport2.x + viewport2.width)/(int)map->tileWidth;
-                fromY = (int)viewport2.y/(int)map->tileHeight;
-                toX = (int)viewport2.x/(int)map->tileWidth;
-                toY = (int)(viewport2.y + viewport2.height)/(int)map->tileHeight;
+                fromX = (int)map->width - 1;
+                fromY = 0;
+                toX = 0;
+                toY = (int)map->height - 1;
             } break;
             case RENDER_ORDER_LEFT_UP:
             {
                 // Start at the bottom-right, iterate left, then iterate up, ending at the top-left.
-                fromX = (int)(viewport2.x + viewport2.width)/(int)map->tileWidth;
-                fromY = (int)(viewport2.y + viewport2.height)/(int)map->tileHeight;
-                toX = (int)viewport2.x/(int)map->tileWidth;
-                toY = (int)viewport2.y/(int)map->tileHeight;
+                fromX = (int)map->width - 1;
+                fromY = (int)map->height - 1;
+                toX = 0;
+                toY = 0;
             } break;
         }
-
-        // Restrain the the tile positions to those within the map in case of rounding mistakes.
-        fromX = Clampi(fromX, 0, (int)map->width - 1);
-        fromY = Clampi(fromY, 0, (int)map->height - 1);
-        toX = Clampi(toX, 0, (int)map->width - 1);
-        toY = Clampi(toY, 0, (int)map->height - 1);
 
         // Begin iteration from both "from" tile positions.
         currentX = fromX;
@@ -3605,8 +3586,8 @@ void DrawTMXTileLayer(const TmxMap *map, Rectangle viewport, TmxLayer layer, Ray
     // Iterate through each tile that overlaps with the viewport and draw them.
     uint32_t rawGid = 0;
     Rectangle destRect = { ZERO_INIT };
-    IterateTileLayer(NULL, NULL, viewport, transform, NULL, NULL, NULL); // Reset tile iteration.
-    while (IterateTileLayer(map, &(layer.exact.tileLayer), viewport, transform, &rawGid, NULL, &destRect))
+    IterateTileLayer(NULL, NULL, NULL, NULL, NULL); // Reset tile iteration.
+    while (IterateTileLayer(map, &(layer.exact.tileLayer), &rawGid, NULL, &destRect))
         DrawTMXLayerTile(map, viewport, transform, rawGid, destRect, tint); // Draw the individual tile.
 }
 
@@ -4197,15 +4178,8 @@ bool CheckCollisionTMXTileLayerObject(const TmxMap *map, const TmxLayer *layers,
             // Iterate through each tile that the object's Axis-Aligned Bounding Box (AABB) overlaps with.
             TmxTile tile = { ZERO_INIT };
             Rectangle tileRect = { ZERO_INIT };
-            RaytmxTransform transform;
-            transform.position.x = 0.0f;
-            transform.position.y = 0.0f;
-            transform.parallax.x = 1.0f;
-            transform.parallax.y = 1.0f;
-            transform.cameraOffset.x = 0.0f;
-            transform.cameraOffset.y = 0.0f;
-            IterateTileLayer(NULL, NULL, object.aabb, transform, NULL, NULL, NULL); // Reset tile iteration.
-            while (IterateTileLayer(map, &(layers[i].exact.tileLayer), object.aabb, transform, NULL, &tile, &tileRect))
+            IterateTileLayer(NULL, NULL, NULL, NULL, NULL); // Reset tile iteration.
+            while (IterateTileLayer(map, &(layers[i].exact.tileLayer), NULL, &tile, &tileRect))
             {
                 // Iterate through each object associated with the tile.
                 for (uint32_t j = 0; j < tile.objectGroup.objectsLength; j++)
