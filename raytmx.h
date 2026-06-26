@@ -776,7 +776,7 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
             if (tileset.tilesLength > 0) // If the tileset has 1+ explicitly-defined tiles.
             {
                 // Find the greatest ID of these <tile> elements and calculate the last GID from it.
-                uint32_t greatestID = 0;
+                uint32_t greatestID = tileset.lastGid;
                 for (uint32_t i = 0; i < tileset.tilesLength; i++)
                     if (greatestID < tileset.tiles[i].id) greatestID = tileset.tiles[i].id;
                 tileset.lastGid = tileset.firstGid + greatestID;
