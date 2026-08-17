@@ -48,7 +48,7 @@ endif
 
 # Define compiler flags: CFLAGS
 #-----------------------------------------------------------------------------------------------------------------------
-# -std=$(STD)           defines the C or C++ language mode (
+# -std=$(STD)           defines the C or C++ language mode (C99, C++11)
 # -Wall                 enables warnings for things that may, but won't necessarily, cause problems
 # -Wextra               enables warnings for things that aren't likely to cause problems but are likely unnecessary
 # -Wpedantic            enables adherence to the language standard (C99, C++11)
