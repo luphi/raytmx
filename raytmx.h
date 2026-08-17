@@ -390,7 +390,7 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName);
 // For maps that reference other files like TSX tilesets or TX object templatets with paths like "tilesets/tileset.tsx,"
 // the path they are relative to can be passed as 'workingDirectory'. It may also be NULL. If these assets, or textures,
 // are also in-memory, SetGetFileTextCallbackTMX() and SetLoadTextureCallbackTMX() can be used to retrieve them.
-RAYTMX_DEC TmxMap *LoadTMXFromMemory(const char *content, const char* workingDirectory);
+RAYTMX_DEC TmxMap *LoadTMXFromMemory(const char *content, const char *workingDirectory);
 
 // Unload a TMX map.
 RAYTMX_DEC void UnloadTMX(TmxMap *map);
@@ -778,7 +778,7 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
     return map;
 }
 
-RAYTMX_DEC TmxMap *LoadTMXFromMemory(const char *content, const char* workingDirectory)
+RAYTMX_DEC TmxMap *LoadTMXFromMemory(const char *content, const char *workingDirectory)
 {
     if ((content == NULL) || (strlen(content) == 0))
     {

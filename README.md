@@ -22,6 +22,7 @@ Header-only raylib library for loading and drawing Tiled's TMX tilemap documents
 - Supports single-image and collection of images tilesets
 - Supports drawing of all object types: ellipse, point, polygon, polyline, text, and tile objects
 - Supports word wrapping and all alignment options, including horizontal justification, of text objects
+- Supports loading from disk and memory
 
 
 ## Limitations
@@ -53,7 +54,8 @@ Only do this in one file. In other source files, include the header without defi
 
 Loading and unloading follows raylib's patterns.
 ```c
-TmxMap* LoadTMX(const char *fileName);
+TmxMap *LoadTMX(const char *fileName);
+TmxMap *LoadTMXFromMemory(const char *content, const char *workingDirectory);
 void UnloadTMX(TmxMap *map);
 ```
 
