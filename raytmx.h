@@ -53,7 +53,10 @@
 // Public types and functions.
 //----------------------------------------------------------------------------------
 
-// Function signature of raylib's LoadTexture() as a type. For use with SetLoadTextureTMX().
+// Function signature of a text getter as a type. For use with SetGetFileTextCallbackTMX();
+typedef const char *(*GetFileTextCallback)(const char *fileName);
+
+// Function signature of raylib's LoadTexture() as a type. For use with SetLoadTextureCallbackTMX().
 typedef Texture2D (*LoadTextureCallback)(const char *fileName);
 
 // Bit flags passed to SetTraceLogFlagsTMX() that optionally disable the logging of specific TMX elements.
@@ -381,7 +384,13 @@ typedef struct TmxMap {
 } TmxMap;
 
 // Load a TMX map from disk. To clean up, use UnloadTMX().
- RAYTMX_DEC TmxMap *LoadTMX(const char *fileName);
+RAYTMX_DEC TmxMap *LoadTMX(const char *fileName);
+
+// Load a TMX map from its XML content in memory. To clean up, use UnloadTMX().
+// For maps that reference other files like TSX tilesets or TX object templatets with paths like "tilesets/tileset.tsx,"
+// the path they are relative to can be passed as 'workingDirectory'. It may also be NULL. If these assets, or textures,
+// are also in-memory, SetGetFileTextCallbackTMX() and SetLoadTextureCallbackTMX() can be used to retrieve them.
+RAYTMX_DEC TmxMap *LoadTMXFromMemory(const char *content, const char* workingDirectory);
 
 // Unload a TMX map.
 RAYTMX_DEC void UnloadTMX(TmxMap *map);
@@ -455,8 +464,12 @@ RAYTMX_DEC bool CheckCollisionTMXObjectGroupPoly(TmxObjectGroup group, Vector2 *
 RAYTMX_DEC bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2 *points, int pointCount,
     Rectangle aabb, TmxObject *outputObject);
 
-// Set a custom texture load. If set, used in place of raylib's LoadTexture().
-RAYTMX_DEC void SetLoadTextureTMX(LoadTextureCallback callback);
+// Set a custom file text getter. If set, this is used in place of raylib's LoadFileText() when getting the content of
+// a tileset TSX or object template TX. If set, the content is not freed afterwards.
+RAYTMX_DEC void SetGetFileTextCallbackTMX(GetFileTextCallback callback);
+
+// Set a custom texture load. If set, this is used in place of raylib's LoadTexture().
+RAYTMX_DEC void SetLoadTextureCallbackTMX(LoadTextureCallback callback);
 
 // Log properties of a map. SetTraceLogFlagsTMX() may be used to exclude select properties.
 RAYTMX_DEC void TraceLogTMX(int logLevel, const TmxMap *map);
@@ -601,9 +614,9 @@ typedef struct RaytmxTextLineNode {
 
 // Intermediate data used internally to parse TMX (map), TSX (tileset), and TX (template) files.
 typedef struct RaytmxState {
-    RaytmxDocumentFormat format;
-    char documentDirectory[512];
-    bool isSuccess;
+    RaytmxDocumentFormat format; // Identifier of the specific file format: TMX, TSX, or TX.
+    char documentDirectory[512]; // Absolute path of the directory with the document (TMX, TSX, or TX).
+    bool isSuccess; // Assigned to true after a successful load, complete or partial. Assigned to false otherwise.
 
     // Variables intended for TMX (map) parsing.
     RaytmxCachedTextureNode *texturesRoot;
@@ -669,8 +682,10 @@ typedef struct RaytmxTransform {
 } RaytmxTransform;
 
 // Forward declarations of functions used by the private implementation.
-RaytmxExternalTileset LoadTSX(const char *fileName);
-RaytmxObjectTemplate LoadTX(const char *fileName);
+TmxMap *LoadTMXInternal(RaytmxState *state, const char *content);
+RaytmxExternalTileset LoadTSX(RaytmxState *state, const char *fileName);
+RaytmxObjectTemplate LoadTX(RaytmxState *state, const char *fileName);
+void ParseContent(RaytmxState *state, const char *content);
 void ParseDocument(RaytmxState *state, const char *fileName);
 void HandleElementBegin(RaytmxState *state, hoxml_context_t *hoxml);
 void HandleAttribute(RaytmxState *state, hoxml_context_t *hoxml);
@@ -715,55 +730,121 @@ Color GetColorFromHexString(const char *hex);
 uint32_t GetGid(uint32_t rawGid, bool *flipX, bool *flipY, bool *flipDiag, bool *rotateHexag120);
 void *MemAllocZero(unsigned int size);
 const char *GetDirectoryPath2(const char *filePath);
+const char *GetPrevDirectoryPath2(const char *dirPath);
 const char *JoinPath(const char *prefix, const char *suffix);
 void StringCopyN(char *destination, const char *source, size_t number);
 void StringConcatenate(char *destination, const char *source);
 
 RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
 {
-    TmxMap *map = (TmxMap *)MemAllocZero(sizeof(TmxMap));
+    if ((fileName == NULL) || (strlen(fileName) == 0))
+    {
+        TraceLog(LOG_ERROR, "RAYTMX: Unable to load TMX because the file name was null or empty");
+        return NULL;
+    }
+
+    // Initialize the state object that remembers whatever is needed as we parse element-by-element.
     RaytmxState state;
     memset(&state, 0, sizeof(RaytmxState));
-    state.format = FORMAT_TMX;
+    // Remember the directory the TMX file is in in case it references other files (images, TSXs, etc.).
+    StringCopy(state.documentDirectory, GetDirectoryPath2(fileName));
 
-    // Do format-agnostic parsing of the document. The state object will be populated with raytmx's models of the
-    // equivalent TMX, TSX, and/or TX elements. */
-    ParseDocument(&state, fileName);
-    if (!state.isSuccess)
+    char *content = LoadFileText(fileName);
+    if (content == NULL)
+    {
+        TraceLog(LOG_ERROR, "RAYTMX: Failed to open TMX file \"%s\"", fileName);
+        return NULL;
+    }
+    else if (strlen(content) == 0)
+    {
+        TraceLog(LOG_ERROR, "RAYTMX: TMX file \"%s\" is empty", fileName);
+        return NULL;
+    }
+
+    // With the content of the TMX in memory, borrow the "load from memory" function to finish loading it.
+    TmxMap *map = LoadTMXInternal(&state, content);
+
+    if (map != NULL)
+    {
+        map->fileName = (char *)MemAllocZero((unsigned int)strlen(fileName) + 1);
+        StringCopy(map->fileName, GetFileName(fileName));
+    }
+
+    // Free the content of the TMX and return the map, or lack thereof if loading failed.
+    UnloadFileText(content);
+    // Free the dynamic lists used while parsing the TMX element-by-element.
+    FreeState(&state);
+
+    return map;
+}
+
+RAYTMX_DEC TmxMap *LoadTMXFromMemory(const char *content, const char* workingDirectory)
+{
+    if ((content == NULL) || (strlen(content) == 0))
+    {
+        TraceLog(LOG_ERROR, "RAYTMX: Unable to load TMX from memory because the content was null or empty");
+        return NULL;
+    }
+
+    // Initialize the state object that remembers whatever is needed as we parse element-by-element.
+    RaytmxState state;
+    memset(&state, 0, sizeof(RaytmxState));
+    // Only assign a directory if one was passed. Without it, any other files referenced in the TMX will be treated as
+    // relative to the actual working directory.
+    if (workingDirectory != NULL) StringCopy(state.documentDirectory, workingDirectory);
+
+    // With the content of the TMX in memory, borrow the "load from memory" function to finish loading it.
+    TmxMap *map = LoadTMXInternal(&state, content);
+
+    // Free the dynamic lists used while parsing the TMX element-by-element.
+    FreeState(&state);
+
+    return map;
+}
+
+TmxMap *LoadTMXInternal(RaytmxState *state, const char *content)
+{
+    if ((state == NULL) || (content == NULL)) return NULL;
+
+    TmxMap *map = (TmxMap *)MemAllocZero(sizeof(TmxMap));
+
+    // TMX, TSX, and TX have overlapping formats due ot TSX and TX files being subsets. So, use the common parsing
+    // function to parse the TMX while also specifying this is a TMX in order to handle edge cases.
+    state->format = FORMAT_TMX;
+    ParseContent(state, content);
+    if (!state->isSuccess)
     {
         UnloadTMX(map);
         return NULL;
     }
 
     // Copy some top-level map properties.
-    map->fileName = (char *)MemAllocZero((unsigned int)strlen(fileName) + 1);
-    StringCopy(map->fileName, GetFileName(fileName));
-    map->orientation = state.mapOrientation;
-    map->renderOrder = state.mapRenderOrder;
-    map->width = state.mapWidth;
-    map->height = state.mapHeight;
-    map->tileWidth = state.mapTileWidth;
-    map->tileHeight = state.mapTileHeight;
-    map->backgroundColor = state.mapBackgroundColor;
-    map->parallaxOriginX = state.mapParallaxOriginX;
-    map->parallaxOriginY = state.mapParallaxOriginY;
-    map->hasBackgroundColor = state.mapHasBackgroundColor;
+    map->orientation = state->mapOrientation;
+    map->renderOrder = state->mapRenderOrder;
+    map->width = state->mapWidth;
+    map->height = state->mapHeight;
+    map->tileWidth = state->mapTileWidth;
+    map->tileHeight = state->mapTileHeight;
+    map->backgroundColor = state->mapBackgroundColor;
+    map->parallaxOriginX = state->mapParallaxOriginX;
+    map->parallaxOriginY = state->mapParallaxOriginY;
+    map->hasBackgroundColor = state->mapHasBackgroundColor;
 
-    if (state.mapProperties != NULL) // If the map itself has properties.
+    if (state->mapProperties != NULL) // If the map itself has properties.
     {
         // Add the properties array to the map.
-        map->properties = state.mapProperties;
-        map->propertiesLength = state.mapPropertiesLength;
+        map->properties = state->mapProperties;
+        map->propertiesLength = state->mapPropertiesLength;
     }
 
     uint32_t gidsToTilesLength = 0; // Can also be seen as the last GID.
-    if (state.tilesetsRoot != NULL) // If there is at least one tileset.
+    if (state->tilesetsRoot != NULL) // If there is at least one tileset.
     {
         // Allocate the array of tilesets and zeroize every index.
-        TmxTileset *tilesets = (TmxTileset *)MemAllocZero(sizeof(TmxTileset)*state.tilesetsLength);
+        TmxTileset *tilesets = (TmxTileset *)MemAllocZero(sizeof(TmxTileset)*state->tilesetsLength);
 
         // Copy the TmxTileset pointers into the array.
-        RaytmxTilesetNode *tilesetIter = state.tilesetsRoot;
+        RaytmxTilesetNode *tilesetIter = state->tilesetsRoot;
         for (uint32_t i = 0; tilesetIter != NULL; i++)
         {
             TmxTileset tileset = tilesetIter->tileset;
@@ -795,15 +876,15 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
 
         // Add the tilesets array to the map.
         map->tilesets = tilesets;
-        map->tilesetsLength = state.tilesetsLength;
+        map->tilesetsLength = state->tilesetsLength;
     }
     else TraceLog(LOG_WARNING, "RAYTMX: The map does not contain any tilesets");
 
-    if (state.layersRoot != NULL) // If there is at least one layer within the map.
+    if (state->layersRoot != NULL) // If there is at least one layer within the map.
     {
         // Due to the existence of <group> layers, layers can have children of multiple generations. To form the
         // resulting tree-like structure, recursion is used.
-        AppendLayerTo(map, NULL, state.layersRoot, state.layersLength);
+        AppendLayerTo(map, NULL, state->layersRoot, state->layersLength);
     }
     else TraceLog(LOG_WARNING, "RAYTMX: The map does not contain any layers");
 
@@ -920,9 +1001,6 @@ RAYTMX_DEC TmxMap *LoadTMX(const char *fileName)
         map->gidsToTiles = gidsToTiles;
         map->gidsToTilesLength = gidsToTilesLength;
     }
-
-    // Free the linked lists and zeroize related values.
-    FreeState(&state);
 
     return map;
 }
@@ -1216,10 +1294,18 @@ RAYTMX_DEC bool CheckCollisionTMXObjectGroupPolyEx(TmxObjectGroup group, Vector2
     return CheckCollisionTMXObjectGroupObject(group, CreatePolygonTMXObject(points, pointCount, &aabb), outputObject);
 }
 
+// Function pointer for a callback similar ot LoadFileText(). NULL means LoadFileText() should be used.
+static GetFileTextCallback loadFileTextOverride = NULL;
+
+RAYTMX_DEC void SetGetFileTextCallbackTMX(GetFileTextCallback callback)
+{
+    loadFileTextOverride = callback;
+}
+
 // LoadTexture() callback function pointer. NULL means no override.
 static LoadTextureCallback loadTextureOverride = NULL;
 
-RAYTMX_DEC void SetLoadTextureTMX(LoadTextureCallback callback)
+RAYTMX_DEC void SetLoadTextureCallbackTMX(LoadTextureCallback callback)
 {
     loadTextureOverride = callback;
 }
@@ -1266,28 +1352,32 @@ RAYTMX_DEC void SetTraceLogFlagsTMX(int logFlags)
     tmxLogFlags = logFlags;
 }
 
-RaytmxExternalTileset LoadTSX(const char *fileName)
+RaytmxExternalTileset LoadTSX(RaytmxState *state, const char *fileName)
 {
     RaytmxExternalTileset externalTileset = { ZERO_INIT };
-    if (fileName == NULL) return externalTileset; // If no file name was given, return immediately with zeroed values.
+    if ((state == NULL) || (fileName == NULL)) return externalTileset; // Return immediately with zeroed values.
 
-    RaytmxState state;
-    memset(&state, 0, sizeof(RaytmxState));
-    state.format = FORMAT_TSX;
+    // Initailize a second state object used while parsing this TSX.
+    RaytmxState state2;
+    memset(&state2, 0, sizeof(RaytmxState));
+    state2.format = FORMAT_TSX;
 
-    // Do format-agnostic parsing of the document. The state object will be populated with raytmx's models of the
-    // equivalent TMX, TSX, and/or TX elements.
-    ParseDocument(&state, fileName);
-    if (!state.isSuccess) return externalTileset;
+    // Parse the (TSX) document element-by-element where the document may be loaded from disk or retrieved with a getter
+    // if a getter was set.
+    const char *filePath = JoinPath(state->documentDirectory, fileName);
+    if (loadFileTextOverride != NULL) ParseContent(&state2, loadFileTextOverride(filePath));
+    else ParseDocument(&state2, filePath);
 
-    if (state.tilesetsRoot != NULL) // If there is at least one tileset.
+    if (!state2.isSuccess) return externalTileset; // Return a zeroed object if parsing failed.
+
+    if (state2.tilesetsRoot != NULL) // If there is at least one tileset.
     {
         // Copy the root tileset so it can be returned.
-        externalTileset.tileset = state.tilesetsRoot->tileset;
+        externalTileset.tileset = state2.tilesetsRoot->tileset;
         externalTileset.isSuccess = true;
 
         // TSX files should have only one tileset so any others will be freed/unloaded immediately.
-        RaytmxTilesetNode *tilesetIter = state.tilesetsRoot->next;
+        RaytmxTilesetNode *tilesetIter = state2.tilesetsRoot->next;
         while (tilesetIter != NULL)
         {
             FreeTileset(tilesetIter->tileset);
@@ -1297,33 +1387,37 @@ RaytmxExternalTileset LoadTSX(const char *fileName)
     else TraceLog(LOG_WARNING, "RAYTMX: TSX file (external tileset) \"%s\" does not contain any tilesets", fileName);
 
     // Free the linked lists and zeroize related values.
-    FreeState(&state);
+    FreeState(&state2);
 
     return externalTileset;
 }
 
-RaytmxObjectTemplate LoadTX(const char *fileName)
+RaytmxObjectTemplate LoadTX(RaytmxState *state, const char *fileName)
 {
     RaytmxObjectTemplate objectTemplate = { ZERO_INIT };
-    if (fileName == NULL) return objectTemplate; // If no file name was given, return immediately with zeroed values.
+    if ((state == NULL) || (fileName == NULL)) return objectTemplate; // Return immediately with zeroed values.
 
-    RaytmxState state;
-    memset(&state, 0, sizeof(RaytmxState));
-    state.format = FORMAT_TX;
+    // Initailize a second state object used while parsing this TX.
+    RaytmxState state2;
+    memset(&state2, 0, sizeof(RaytmxState));
+    state2.format = FORMAT_TX;
 
-    // Do format-agnostic parsing of the document. The state object will be populated with raytmx's models of the
-    // equivalent TMX, TSX, and/or TX elements.
-    ParseDocument(&state, fileName);
-    if (!state.isSuccess) return objectTemplate;
+    // Parse the (TX) document element-by-element where the document may be loaded from disk or retrieved with a getter
+    // if a getter was set.
+    const char *filePath = JoinPath(state->documentDirectory, fileName);
+    if (loadFileTextOverride != NULL) ParseContent(&state2, loadFileTextOverride(filePath));
+    else ParseDocument(&state2, filePath);
 
-    if (state.objectsRoot != NULL) // If there is at least one object.
+    if (!state2.isSuccess) return objectTemplate; // Return a zeroed object if parsing failed.
+
+    if (state2.objectsRoot != NULL) // If there is at least one object.
     {
         // Copy the root object so it can be returned.
-        objectTemplate.object = state.objectsRoot->object;
+        objectTemplate.object = state2.objectsRoot->object;
         objectTemplate.isSuccess = true;
 
         // TX files should have only one object so any others will be freed/unloaded immediately.
-        RaytmxObjectNode *objectIter = state.objectsRoot->next;
+        RaytmxObjectNode *objectIter = state2.objectsRoot->next;
         while (objectIter != NULL)
         {
             FreeObject(objectIter->object);
@@ -1332,15 +1426,15 @@ RaytmxObjectTemplate LoadTX(const char *fileName)
     }
     else TraceLog(LOG_WARNING, "RAYTMX: TX file (object template) \"%s\" does not contain any objects", fileName);
 
-    if (state.tilesetsRoot != NULL) // If there is at least one tileset.
+    if (state2.tilesetsRoot != NULL) // If there is at least one tileset.
     {
         // Object templates may have a tileset. This is for cases where the object references a tile (i.e. its 'gid'
         // attribute is set). Copy the root tileset so it can be returned.
-        objectTemplate.tileset = state.tilesetsRoot->tileset;
+        objectTemplate.tileset = state2.tilesetsRoot->tileset;
         objectTemplate.hasTileset = true;
 
         // TX files should have at most one tileset so any others will be freed/unloaded immediately.
-        RaytmxTilesetNode *tilesetsIter = state.tilesetsRoot->next;
+        RaytmxTilesetNode *tilesetsIter = state2.tilesetsRoot->next;
         while (tilesetsIter != NULL)
         {
             FreeTileset(tilesetsIter->tileset);
@@ -1349,24 +1443,17 @@ RaytmxObjectTemplate LoadTX(const char *fileName)
     }
 
     // Free the linked lists and zeroize related values.
-    FreeState(&state);
+    FreeState(&state2);
 
     return objectTemplate;
 }
 
-void ParseDocument(RaytmxState *state, const char *fileName)
+void ParseContent(RaytmxState *state, const char *content)
 {
-    if ((state == NULL) || (fileName == NULL)) return; // Exit immediately if either required parameter is null.
+    if ((state == NULL) || (content == NULL)) return; // Exit immediately if either required parameter is null.
 
-    char *content = LoadFileText(fileName);
-    if (content == NULL)
-    {
-        TraceLog(LOG_ERROR, "RAYTMX: Failed to open \"%s\"", fileName);
-        return;
-    }
+    state->isSuccess = false; // Will be reassigned when parsing has actually succeeded.
     size_t contentLength = strlen(content);
-
-    StringCopy(state->documentDirectory, GetDirectoryPath2(fileName));
 
     hoxml_context_t hoxml = { ZERO_INIT };
     size_t bufferLength = contentLength;
@@ -1374,7 +1461,7 @@ void ParseDocument(RaytmxState *state, const char *fileName)
     hoxml_init(&hoxml, buffer, bufferLength);
 
     hoxml_code_t code;
-    while ((code = hoxml_parse(&hoxml, content, contentLength)) != HOXML_END_OF_DOCUMENT)
+    while ((code = hoxml_parse(&hoxml, content, contentLength)) > HOXML_END_OF_DOCUMENT)
     {
         if (code > HOXML_END_OF_DOCUMENT) // If there's information about an element, attribute, whatever.
         {
@@ -1425,15 +1512,33 @@ void ParseDocument(RaytmxState *state, const char *fileName)
                 } break;
                 default: break; // Keep compilers happy.
             }
-
-            UnloadFileText(content);
-            return;
         }
     }
 
-    UnloadFileText(content);
     MemFree(buffer);
     state->isSuccess = true;
+}
+
+void ParseDocument(RaytmxState *state, const char *fileName)
+{
+    if ((state == NULL) || (fileName == NULL)) return; // Exit immediately if either required parameter is null.
+
+    // Try to read the document's content from disk.
+    const char *content = LoadFileText(fileName);
+    if (content == NULL)
+    {
+        TraceLog(LOG_ERROR, "RAYTMX: Failed to open \"%s\"", fileName);
+        return;
+    }
+
+    // Remember the directory the file is in in case it references other files (images, TSXs, etc.).
+    StringCopy(state->documentDirectory, GetPrevDirectoryPath2(fileName));
+
+    // Parse the document element-by-element.
+    ParseContent(state, content);
+
+    // Free the buffer that held the document's content.
+    UnloadFileText((char *)content);
 }
 
 void HandleElementBegin(RaytmxState *state, hoxml_context_t *hoxml)
@@ -1662,7 +1767,7 @@ void HandleAttribute(RaytmxState *state, hoxml_context_t *hoxml)
                 state->tileset->source = (char *)MemAlloc((unsigned int)strlen(hoxml->value) + 1);
                 StringCopy(state->tileset->source, hoxml->value);
                 // 'source' points to an external TSX file that defines the majority of the tileset. Try to load it.
-                RaytmxExternalTileset externalTileset = LoadTSX(JoinPath(state->documentDirectory, hoxml->value));
+                const RaytmxExternalTileset externalTileset = LoadTSX(state, hoxml->value);
                 if (externalTileset.isSuccess)
                 {
                     // A <tileset> within a <map> will have two attributes: 'firstgid' and 'source.' The rest of the
@@ -4753,11 +4858,11 @@ RaytmxCachedTextureNode *LoadCachedTexture(RaytmxState *state, const char *fileN
     // NOTE: If the function hasn't returned by this line, the texture is new and needs to be cached.
 
     // Try to load the texture.
-    const char *fullPath = JoinPath(state->documentDirectory, fileName);
-    const Texture2D texture = loadTextureOverride? loadTextureOverride(fullPath) : LoadTexture(fullPath);
+    const char *path = JoinPath(state->documentDirectory, fileName);
+    const Texture2D texture = loadTextureOverride? loadTextureOverride(path) : LoadTexture(path);
     if (texture.id == 0) // If loading the texture failed.
     {
-        TraceLog(LOG_ERROR, "RAYTMX: Unable to load texture \"%s\"", fullPath);
+        TraceLog(LOG_ERROR, "RAYTMX: Unable to load texture \"%s\"", path);
         return NULL;
     }
 
@@ -4795,11 +4900,11 @@ RaytmxCachedTemplateNode *LoadCachedTemplate(RaytmxState *state, const char *fil
     // NOTE: If the function hasn't returned by this line, the template is new and needs to be cached.
 
     // Load the template from the external TX file.
-    const char *fullPath = JoinPath(state->documentDirectory, fileName);
-    const RaytmxObjectTemplate objectTemplate = LoadTX(fullPath);
+    const RaytmxObjectTemplate objectTemplate = LoadTX(state, fileName);
+
     if (!objectTemplate.isSuccess) // If loading the template failed.
     {
-        TraceLog(LOG_ERROR, "RAYTMX: Unable to load template \"%s\"", fullPath);
+        TraceLog(LOG_ERROR, "RAYTMX: Unable to load template \"%s\"", fileName);
         return NULL;
     }
 
@@ -4916,7 +5021,8 @@ const char *GetDirectoryPath2(const char *filePath)
 
     size_t length = strlen(filePath);
     // Paths beginning with a Windows drive letter (C:\, D:\, etc.) or beginning with a slash are absolute paths.
-    if ((length >= 2) && ((filePath[1] == ':') || (filePath[0] == '\\') || (filePath[0] == '/'))) // If absolute.
+    if (((length >= 2) && ((filePath[1] == ':') || (filePath[0] == '\\'))) ||
+        ((length >= 1) && (filePath[0] == '/'))) // If absolute.
     {
         const bool isDirectory = !IsPathFile(filePath);
         StringCopy(directoryPath, filePath);
@@ -4934,6 +5040,38 @@ const char *GetDirectoryPath2(const char *filePath)
     while ((iter != directoryPath) && (*iter != '\0') && (*iter != '\\') && (*iter != '/')) iter -= 1;
     *(iter + 1) = '\0'; // Place a null terminator after the slash to effectively end the string there.
     return directoryPath;
+}
+
+// Get the parent directory for a given pathh. Returns a static string.
+// raylib's GetPrevDirectoryPath() has questionable behavior in corner cases so this is used in its place.
+const char *GetPrevDirectoryPath2(const char *dirPath)
+{
+    static char prevDirPath[260] = { ZERO_INIT };
+    memset(prevDirPath, '\0', 260);
+    if ((dirPath == NULL) || (dirPath[0] == '\0')) return prevDirPath;
+
+    // Due to the check above, we know dirPath is neither null nor empty.
+    size_t dirPathLength = strlen(dirPath);
+    int lastIndex = (int)dirPathLength - 1;
+
+    for (int i = lastIndex; i >= 0; i--)
+    {
+        // If the character is a path separator.
+        if ((dirPath[i] == '\\') || (dirPath[i] == '/'))
+        {
+            // If this character is a leading '/' (e.g. the '/' in "/usr") or part of a drive root (e.g. "C:\"), include
+            // it with the result.
+            if ((i == 0) || ((i == 2) && (dirPath[1] == ':'))) i += 1;
+            // If this character is a trailing path separator (e.g. the last '/' in "/usr/bin/" or the last '\' in
+            // "C:\raylib\"), continue looping.
+            else if (i == lastIndex) continue;
+
+            memcpy(prevDirPath, dirPath, i);
+            break;
+        }
+    }
+
+    return prevDirPath;
 }
 
 const char *JoinPath(const char *prefix, const char *suffix)
@@ -4964,7 +5102,7 @@ const char *JoinPath(const char *prefix, const char *suffix)
 
 void StringCopy(char *destination, const char *source)
 {
-    if ((destination == NULL) || (source == NULL)) return;
+    if ((destination == NULL) || (source == NULL) || (destination == source)) return;
 
 #if (!defined _MSC_VER || defined _CRT_SECURE_NO_WARNINGS)
     // This is for build environments where "[M]icro[S]oft [C]ompiler [VER]sion" is not defined, meaning the compiler is
@@ -4981,7 +5119,7 @@ void StringCopy(char *destination, const char *source)
 
 void StringCopyN(char *destination, const char *source, size_t number)
 {
-    if ((destination == NULL) || (source == NULL)) return;
+    if ((destination == NULL) || (source == NULL) || (destination == source) || (number == 0)) return;
 
 #if (!defined _MSC_VER || defined _CRT_SECURE_NO_WARNINGS)
     strncpy(destination, source, number);
@@ -4992,7 +5130,7 @@ void StringCopyN(char *destination, const char *source, size_t number)
 
 void StringConcatenate(char *destination, const char *source)
 {
-    if ((destination == NULL) || (source == NULL)) return;
+    if ((destination == NULL) || (source == NULL) || (destination == source)) return;
 
 #if (!defined _MSC_VER || defined _CRT_SECURE_NO_WARNINGS)
     strcat(destination, source);
