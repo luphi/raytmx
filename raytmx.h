@@ -730,7 +730,6 @@ Color GetColorFromHexString(const char *hex);
 uint32_t GetGid(uint32_t rawGid, bool *flipX, bool *flipY, bool *flipDiag, bool *rotateHexag120);
 void *MemAllocZero(unsigned int size);
 const char *GetDirectoryPath2(const char *filePath);
-const char *GetPrevDirectoryPath2(const char *dirPath);
 const char *JoinPath(const char *prefix, const char *suffix);
 void StringCopyN(char *destination, const char *source, size_t number);
 void StringConcatenate(char *destination, const char *source);
@@ -1532,7 +1531,7 @@ void ParseDocument(RaytmxState *state, const char *fileName)
     }
 
     // Remember the directory the file is in in case it references other files (images, TSXs, etc.).
-    StringCopy(state->documentDirectory, GetPrevDirectoryPath2(fileName));
+    StringCopy(state->documentDirectory, GetDirectoryPath2(fileName));
 
     // Parse the document element-by-element.
     ParseContent(state, content);
@@ -5040,38 +5039,6 @@ const char *GetDirectoryPath2(const char *filePath)
     while ((iter != directoryPath) && (*iter != '\0') && (*iter != '\\') && (*iter != '/')) iter -= 1;
     *(iter + 1) = '\0'; // Place a null terminator after the slash to effectively end the string there.
     return directoryPath;
-}
-
-// Get the parent directory for a given pathh. Returns a static string.
-// raylib's GetPrevDirectoryPath() has questionable behavior in corner cases so this is used in its place.
-const char *GetPrevDirectoryPath2(const char *dirPath)
-{
-    static char prevDirPath[260] = { ZERO_INIT };
-    memset(prevDirPath, '\0', 260);
-    if ((dirPath == NULL) || (dirPath[0] == '\0')) return prevDirPath;
-
-    // Due to the check above, we know dirPath is neither null nor empty.
-    size_t dirPathLength = strlen(dirPath);
-    int lastIndex = (int)dirPathLength - 1;
-
-    for (int i = lastIndex; i >= 0; i--)
-    {
-        // If the character is a path separator.
-        if ((dirPath[i] == '\\') || (dirPath[i] == '/'))
-        {
-            // If this character is a leading '/' (e.g. the '/' in "/usr") or part of a drive root (e.g. "C:\"), include
-            // it with the result.
-            if ((i == 0) || ((i == 2) && (dirPath[1] == ':'))) i += 1;
-            // If this character is a trailing path separator (e.g. the last '/' in "/usr/bin/" or the last '\' in
-            // "C:\raylib\"), continue looping.
-            else if (i == lastIndex) continue;
-
-            memcpy(prevDirPath, dirPath, i);
-            break;
-        }
-    }
-
-    return prevDirPath;
 }
 
 const char *JoinPath(const char *prefix, const char *suffix)
