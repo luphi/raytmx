@@ -3859,6 +3859,7 @@ void DrawTMXObjectGroup(const TmxMap *map, Rectangle viewport, TmxLayer layer, R
     if ((map == NULL) || (layer.type != LAYER_TYPE_OBJECT_GROUP) || (tint.a == 0)) return;
 
     const TmxObjectGroup objectGroup = layer.exact.objectGroup;
+    tint = ColorTint(objectGroup.color, tint);
 
     for (int32_t i = 0; i < (int32_t)objectGroup.objectsLength; i++)
     {
@@ -3888,7 +3889,7 @@ void DrawTMXObjectGroup(const TmxMap *map, Rectangle viewport, TmxLayer layer, R
                     {
                         const Rectangle rectangle = { transform.position.x + (float)object.x,
                             transform.position.y + (float)object.y, (float)object.width, (float)object.height };
-                        DrawRectangleRec(rectangle, objectGroup.color);
+                        DrawRectangleRec(rectangle, tint);
                     } break;
                     case OBJECT_TYPE_ELLIPSE:
                     {
@@ -3897,7 +3898,7 @@ void DrawTMXObjectGroup(const TmxMap *map, Rectangle viewport, TmxLayer layer, R
                         const float radiusX = (float)object.width/2.0f;
                         const float radiusY = (float)object.height/2.0f;
                         DrawEllipse((int)(transform.position.x + (float)object.x + radiusX),
-                            (int)(transform.position.y + (float)object.y + radiusY), radiusX, radiusY, objectGroup.color);
+                            (int)(transform.position.y + (float)object.y + radiusY), radiusX, radiusY, tint);
                     } break;
                     case OBJECT_TYPE_POINT:
                     {
@@ -3906,7 +3907,7 @@ void DrawTMXObjectGroup(const TmxMap *map, Rectangle viewport, TmxLayer layer, R
                         // the point is drawn with a circle, with a diameter equal to a quarter of a tile's width.
                         const Vector2 center = { transform.position.x + (float)object.x,
                             transform.position.y + (float)object.y };
-                        DrawCircleV(center, (float)map->tileWidth/4.0f, objectGroup.color);
+                        DrawCircleV(center, (float)map->tileWidth/4.0f, tint);
                     } break;
                     case OBJECT_TYPE_POLYGON:
                     case OBJECT_TYPE_POLYLINE:
@@ -3928,15 +3929,14 @@ void DrawTMXObjectGroup(const TmxMap *map, Rectangle viewport, TmxLayer layer, R
                         {
                             // Note: Polygons' first elements are their centroids. DrawTriangleFan() requires this.
                             // And, the last element in 'drawPoints' is a duplicate of the first, non-centroid point.
-                            DrawTriangleFan(object.drawPoints, object.pointsLength, objectGroup.color);
+                            DrawTriangleFan(object.drawPoints, object.pointsLength, tint);
                         }
                         else // if (object.type == OBJECT_TYPE_POLYLINE)
                         {
                             // Note: The last element in 'drawPoints' is a duplicate of the first point.
                             for (uint32_t i = 1; i < object.pointsLength; i++)
                             {
-                                DrawLineEx(object.drawPoints[i - 1], object.drawPoints[i], TMX_LINE_THICKNESS,
-                                    objectGroup.color);
+                                DrawLineEx(object.drawPoints[i - 1], object.drawPoints[i], TMX_LINE_THICKNESS, tint);
                             }
                         }
                     } break;
