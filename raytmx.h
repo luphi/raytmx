@@ -858,7 +858,9 @@ TmxMap *LoadTMXInternal(RaytmxState *state, const char *content)
                 // Find the greatest ID of these <tile> elements and calculate the last GID from it.
                 uint32_t greatestID = tileset.lastGid;
                 for (uint32_t i = 0; i < tileset.tilesLength; i++)
+                {
                     if (greatestID < tileset.tiles[i].id) greatestID = tileset.tiles[i].id;
+                }
                 tileset.lastGid = tileset.firstGid + greatestID;
                 // Note: Both types of tilesets, typical with a grid and "collection of images," can have explicit
                 // <tile> definitions. The former often uses them for animations. The latter defines all of its tiles
@@ -913,7 +915,9 @@ TmxMap *LoadTMXInternal(RaytmxState *state, const char *content)
                         // Frames' tile (G)IDs are initially set with local values. Now that all tilesets are known and
                         // this tileset's first global ID is available, update the ID to be global.
                         for (uint32_t k = 0; k < gidsToTiles[gid].animation.framesLength; k++)
+                        {
                             gidsToTiles[gid].animation.frames[k].gid += tileset->firstGid;
+                        }
                     }
 
                     if (tilesetTile.x != 0 || tilesetTile.y != 0 || tilesetTile.width != 0 || tilesetTile.height != 0)
@@ -3128,7 +3132,9 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                             // Count the number of spaces between words.
                             uint32_t numSpaces = 0;
                             for (uint32_t j = 0; lines[i].content[j] != '\0'; j++)
+                            {
                                 if (isspace(lines[i].content[j])) numSpaces++;
+                            }
                             size_t contentLength = strlen(lines[i].content);
                             if (numSpaces > 0) // If there's more than one word in the line.
                             {
@@ -3158,7 +3164,9 @@ void HandleElementEnd(RaytmxState *state, hoxml_context_t *hoxml)
                                     {
                                         // Add 'numSpacesToAddPer' spaces to the justified string.
                                         for (uint32_t j = 0; j < numSpacesToAddPer; j++)
+                                        {
                                             justifiedContent[destinationIndex++] = ' ';
+                                        }
                                     }
                                     sourceIndex++;
                                 }
@@ -3442,7 +3450,9 @@ void FreeLayer(TmxLayer layer)
         case LAYER_TYPE_OBJECT_GROUP:
         {
             for (uint32_t i = 0; i < layer.exact.objectGroup.objectsLength; i++)
+            {
                 FreeObject(layer.exact.objectGroup.objects[i]);
+            }
             MemFree(layer.exact.objectGroup.objects);
         } break;
         case LAYER_TYPE_IMAGE_LAYER:
@@ -4419,7 +4429,9 @@ void TraceLogTMXTilesets(int logLevel, TmxOrientation orientation, TmxTileset *t
                 {
                     TraceLog(logLevel, "      objects:");
                     for (uint32_t k = 0; k < tile.objectGroup.objectsLength; k++)
+                    {
                         TraceLogTMXObject(logLevel, tile.objectGroup.objects[k], numSpaces + 2);
+                    }
                 }
             }
         }
